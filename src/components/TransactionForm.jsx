@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { TRANSACTION_TYPES } from '../constants/categories'
-import { formatDateForSheet, formatCurrencyForPayload } from '../utils/formatters'
+import { formatDateForSheet, formatCurrencyForPayload, formatMonthSheet } from '../utils/formatters'
 import { createTransaction, buildTransactionPayload } from '../services/sheetdb'
 import { categoriesManager } from '../services/categoriesManager'
 import DatePicker from './DatePicker'
@@ -70,7 +70,8 @@ const TransactionForm = () => {
         category: formData.category || 'Khác',
         name: formData.name || '',
         amount: formatCurrencyForPayload(formData.amount),
-        note: formData.note
+        note: formData.note,
+        month: formatMonthSheet(formData.date)
       })
       
       await createTransaction(payload)

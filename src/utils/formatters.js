@@ -39,3 +39,7 @@ export const formatDateForSheet = (date) => {
 export const formatDateForInput = (date) => {
   return format(date, 'yyyy-MM-dd')
 }
+
+export const formatMonthSheet = (date) => {
+  return format(date, 'MM/yyyy')
+}

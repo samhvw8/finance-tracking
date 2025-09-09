@@ -76,6 +76,7 @@ export const buildTransactionPayload = (formData) => {
     'Tên': formData.name,
     'Số Tiền': formData.amount,
     'Note': formData.note || '',
+    'Month': formData.month
   }
 }
 

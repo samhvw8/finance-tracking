@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { formatCurrency, parseCurrency } from '../utils/formatters'
 
 const AmountInput = ({ value, onChange, className = '' }) => {
@@ -14,6 +14,15 @@ const AmountInput = ({ value, onChange, className = '' }) => {
   
   const handleChange = (e) => {
     const inputValue = e.target.value
+    
+    // If the input is empty or only contains whitespace/currency symbols
+    if (!inputValue || inputValue.trim() === '' || inputValue === '₫') {
+      setDisplayValue('')
+      onChange(0)
+      return
+    }
+    
+    // Extract only numeric characters
     const numericValue = inputValue.replace(/[^\d]/g, '')
     
     if (numericValue === '') {
@@ -23,11 +32,12 @@ const AmountInput = ({ value, onChange, className = '' }) => {
     }
     
     const amount = parseInt(numericValue)
-    setDisplayValue(formatCurrency(amount))
+    // Don't auto-format while typing, just store the numeric input
+    setDisplayValue(numericValue)
     onChange(amount)
   }
   
-  const handleFocus = (e) => {
+  const handleFocus = () => {
     const numericValue = parseCurrency(displayValue)
     if (numericValue > 0) {
       setDisplayValue(numericValue.toString())
@@ -36,13 +46,21 @@ const AmountInput = ({ value, onChange, className = '' }) => {
   
   const handleBlur = () => {
     if (displayValue && !isNaN(displayValue)) {
-      // If displayValue is a plain number (from focus state)
+      // Format the numeric value on blur
       const amount = parseInt(displayValue)
-      setDisplayValue(formatCurrency(amount))
-      onChange(amount)
-    } else if (displayValue) {
-      // If displayValue is already formatted, keep the current parent value
+      if (amount > 0) {
+        setDisplayValue(formatCurrency(amount))
+        onChange(amount)
+      } else {
+        setDisplayValue('')
+        onChange(0)
+      }
+    } else if (value > 0) {
+      // Fallback to the current value if display is invalid
       setDisplayValue(formatCurrency(value))
+    } else {
+      setDisplayValue('')
+      onChange(0)
     }
   }
   

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { TRANSACTION_TYPES } from '../constants/categories'
-import { formatDateForSheet, formatCurrencyForPayload, formatCurrency } from '../utils/formatters'
+import { formatDateForSheet, formatCurrencyForPayload, formatCurrency, formatMonthSheet } from '../utils/formatters'
 import { createTransaction, createBatchTransactions, buildTransactionPayload } from '../services/sheetdb'
 import { categoriesManager } from '../services/categoriesManager'
 import { indexedDBService } from '../services/indexedDB'
@@ -152,7 +152,8 @@ const BatchTransactionForm = ({ onClose }) => {
         category: t.category || 'Khác',
         name: t.name || '',
         amount: formatCurrencyForPayload(t.amount),
-        note: t.note
+        note: t.note,
+        month: formatMonthSheet(t.date)
       }))
       
       await createBatchTransactions(payload)
@@ -186,7 +187,8 @@ const BatchTransactionForm = ({ onClose }) => {
         category: currentForm.category || 'Khác',
         name: currentForm.name || '',
         amount: formatCurrencyForPayload(currentForm.amount),
-        note: currentForm.note
+        note: currentForm.note,
+        month: formatMonthSheet(currentForm.date)
       })
       
       await createTransaction(payload)
