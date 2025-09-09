@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import TransactionForm from './components/TransactionForm'
-import BatchTransactionForm from './components/BatchTransactionForm'
+import UnifiedTransactionForm from './components/UnifiedTransactionForm'
 import TokenSettings from './components/TokenSettings'
 import { initDB, indexedDBService } from './services/indexedDB'
 import { categoriesManager } from './services/categoriesManager'
@@ -60,7 +59,8 @@ function App() {
         <TokenSettings />
         
         {showBatchMode ? (
-          <BatchTransactionForm 
+          <UnifiedTransactionForm
+            mode="batch"
             initialFormData={currentFormData}
             onClose={() => {
               setShowBatchMode(false)
@@ -85,7 +85,10 @@ function App() {
                 )}
               </button>
             </div>
-            <TransactionForm onFormDataChange={setCurrentFormData} />
+            <UnifiedTransactionForm 
+              mode="single" 
+              onFormDataChange={setCurrentFormData} 
+            />
           </>
         )}
       </div>
