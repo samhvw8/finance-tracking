@@ -9,6 +9,7 @@ function App() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [showBatchMode, setShowBatchMode] = useState(false)
   const [savedTransactionsCount, setSavedTransactionsCount] = useState(0)
+  const [currentFormData, setCurrentFormData] = useState(null)
   
   useEffect(() => {
     initializeApp()
@@ -59,15 +60,21 @@ function App() {
         <TokenSettings />
         
         {showBatchMode ? (
-          <BatchTransactionForm onClose={() => {
-            setShowBatchMode(false)
-            setSavedTransactionsCount(0) // Reset count when closing batch mode
-          }} />
+          <BatchTransactionForm 
+            initialFormData={currentFormData}
+            onClose={() => {
+              setShowBatchMode(false)
+              setSavedTransactionsCount(0) // Reset count when closing batch mode
+              setCurrentFormData(null) // Clear form data
+            }} 
+          />
         ) : (
           <>
             <div className="mb-4">
               <button
-                onClick={() => setShowBatchMode(true)}
+                onClick={() => {
+                  setShowBatchMode(true)
+                }}
                 className="w-full bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 transition-colors relative"
               >
                 <span>Chế độ thêm nhiều giao dịch</span>
@@ -78,7 +85,7 @@ function App() {
                 )}
               </button>
             </div>
-            <TransactionForm />
+            <TransactionForm onFormDataChange={setCurrentFormData} />
           </>
         )}
       </div>

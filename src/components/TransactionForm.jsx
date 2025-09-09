@@ -6,7 +6,7 @@ import { categoriesManager } from '../services/categoriesManager'
 import DatePicker from './DatePicker'
 import AmountInput from './AmountInput'
 
-const TransactionForm = () => {
+const TransactionForm = ({ onFormDataChange }) => {
   const [formData, setFormData] = useState({
     date: new Date(),
     type: TRANSACTION_TYPES.EXPENSE,
@@ -35,11 +35,17 @@ const TransactionForm = () => {
   const availableCategories = categories[formData.type] || []
   
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
+    const updatedFormData = {
+      ...formData,
       [field]: value,
       ...(field === 'type' ? { category: '' } : {})
-    }))
+    }
+    setFormData(updatedFormData)
+    
+    // Report form data changes to parent
+    if (onFormDataChange) {
+      onFormDataChange(updatedFormData)
+    }
   }
   
   const validateForm = () => {

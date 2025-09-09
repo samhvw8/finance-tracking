@@ -7,16 +7,18 @@ import { indexedDBService } from '../services/indexedDB'
 import DatePicker from './DatePicker'
 import AmountInput from './AmountInput'
 
-const BatchTransactionForm = ({ onClose }) => {
+const BatchTransactionForm = ({ onClose, initialFormData }) => {
   const [transactions, setTransactions] = useState([])
-  const [currentForm, setCurrentForm] = useState({
-    date: new Date(),
-    type: TRANSACTION_TYPES.EXPENSE,
-    category: '',
-    name: '',
-    amount: 0,
-    note: ''
-  })
+  const [currentForm, setCurrentForm] = useState(
+    initialFormData || {
+      date: new Date(),
+      type: TRANSACTION_TYPES.EXPENSE,
+      category: '',
+      name: '',
+      amount: 0,
+      note: ''
+    }
+  )
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
@@ -34,6 +36,13 @@ const BatchTransactionForm = ({ onClose }) => {
     
     return unsubscribe
   }, [])
+  
+  // Update form when initialFormData changes
+  useEffect(() => {
+    if (initialFormData) {
+      setCurrentForm(initialFormData)
+    }
+  }, [initialFormData])
   
   // Auto-save transactions to IndexedDB whenever transactions array changes
   useEffect(() => {

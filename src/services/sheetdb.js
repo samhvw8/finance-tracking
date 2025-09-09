@@ -76,7 +76,7 @@ export const buildTransactionPayload = (formData) => {
     'Tên': formData.name,
     'Số Tiền': formData.amount,
     'Note': formData.note || '',
-    'Month': formData.month
+    'Month': "=TEXT(DATEVALUE(\"" + formData.month + "\"), \"MM/yyyy\")" // Formula to ensure correct date format in Google Sheets
   }
 }
 
