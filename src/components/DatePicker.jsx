@@ -42,7 +42,7 @@ const DatePicker = ({ value, onChange, className = '' }) => {
       onChange={handleInputChange}
       onBlur={handleBlur}
       max={maxDate}
-      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${className}`}
+      className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300 ${className}`}
     />
   )
 }

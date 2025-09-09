@@ -60,7 +60,7 @@ const TokenSettings = () => {
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-5 mb-4 animate-scaleIn">
       <div className="space-y-4">
         {/* Token Section */}
         <div>
@@ -69,7 +69,7 @@ const TokenSettings = () => {
             {!isEditingToken && (
               <button
                 onClick={() => setIsEditingToken(true)}
-                className="text-sm text-blue-500 hover:text-blue-600"
+                className="text-sm text-blue-500 hover:text-blue-600 transition-colors hover:bg-blue-50 px-2 py-1 rounded-lg"
               >
                 Chỉnh sửa
               </button>
@@ -84,12 +84,12 @@ const TokenSettings = () => {
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   placeholder="Nhập SheetDB Bearer Token"
-                  className="w-full px-3 py-2 pr-20 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 pr-20 text-sm border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300"
                 />
                 <button
                   type="button"
                   onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500 hover:text-blue-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-500 hover:text-blue-600 transition-colors px-2 py-1 hover:bg-blue-50 rounded-lg"
                 >
                   {showToken ? 'Ẩn' : 'Hiện'}
                 </button>
@@ -97,7 +97,7 @@ const TokenSettings = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleSaveToken}
-                  className="flex-1 bg-blue-500 text-white py-1.5 px-3 text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-3 text-sm rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md"
                 >
                   Lưu
                 </button>
@@ -106,7 +106,7 @@ const TokenSettings = () => {
                     setIsEditingToken(false)
                     loadToken()
                   }}
-                  className="flex-1 bg-gray-200 text-gray-700 py-1.5 px-3 text-sm rounded-lg hover:bg-gray-300 transition-colors"
+                  className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 text-sm rounded-xl hover:bg-gray-200 transition-all duration-200 border-2 border-gray-200 hover:border-gray-300"
                 >
                   Hủy
                 </button>
@@ -125,7 +125,7 @@ const TokenSettings = () => {
           <button
             onClick={handleReloadCategories}
             disabled={isLoadingCategories}
-            className="bg-green-500 text-white py-1.5 px-4 text-sm rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 text-sm rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md"
           >
             {isLoadingCategories ? (
               <span className="flex items-center">
@@ -143,10 +143,10 @@ const TokenSettings = () => {
         
         {/* Message Display */}
         {message && (
-          <div className={`p-2 rounded-lg text-sm text-center ${
+          <div className={`p-3 rounded-xl text-sm text-center animate-fadeIn ${
             message.type === 'error' 
-              ? 'bg-red-100 text-red-700' 
-              : 'bg-green-100 text-green-700'
+              ? 'bg-red-100 text-red-700 border border-red-200' 
+              : 'bg-green-100 text-green-700 border border-green-200'
           }`}>
             {message.text}
           </div>

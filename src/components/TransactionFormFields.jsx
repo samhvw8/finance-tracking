@@ -13,7 +13,7 @@ const TransactionFormFields = ({
   return (
     <div className={`space-y-4 ${className}`}>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
           Ngày
         </label>
         <DatePicker
@@ -23,13 +23,13 @@ const TransactionFormFields = ({
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
           Loại Giao Dịch
         </label>
         <select
           value={formData.type}
           onChange={(e) => handleInputChange('type', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300"
         >
           {Object.values(TRANSACTION_TYPES).map(type => (
             <option key={type} value={type}>{type}</option>
@@ -38,13 +38,13 @@ const TransactionFormFields = ({
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
           Danh Mục
         </label>
         <select
           value={formData.category}
           onChange={(e) => handleInputChange('category', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300"
         >
           <option value="">Chọn danh mục</option>
           {availableCategories.map(category => (
@@ -54,7 +54,7 @@ const TransactionFormFields = ({
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
           Tên Giao Dịch
         </label>
         <input
@@ -62,12 +62,12 @@ const TransactionFormFields = ({
           value={formData.name}
           onChange={(e) => handleInputChange('name', e.target.value)}
           placeholder="Nhập mô tả giao dịch"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300 placeholder-gray-400"
         />
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
           Số Tiền
         </label>
         <AmountInput
@@ -77,7 +77,7 @@ const TransactionFormFields = ({
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
           Ghi Chú
         </label>
         <textarea
@@ -85,7 +85,7 @@ const TransactionFormFields = ({
           onChange={(e) => handleInputChange('note', e.target.value)}
           placeholder="Ghi chú thêm (không bắt buộc)"
           rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300 resize-none placeholder-gray-400"
         />
       </div>
     </div>

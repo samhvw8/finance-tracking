@@ -45,29 +45,45 @@ function App() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8 max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="container mx-auto px-4 py-6 sm:py-12 max-w-md">
         <header className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
             Theo Dõi Chi Tiêu
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 mt-3 text-sm sm:text-base">
             Ghi chép giao dịch hàng ngày
           </p>
         </header>
         
-        <TokenSettings />
+        <div className="mb-6">
+          <TokenSettings />
+        </div>
         
-        <div className="mb-4">
+        <div className="mb-6">
           <button
             onClick={() => setShowBatchMode(!showBatchMode)}
-            className="w-full bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 transition-colors relative"
+            className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 relative shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-medium"
           >
-            <span>
-              {showBatchMode ? 'Chế độ thêm đơn lẻ' : 'Chế độ thêm nhiều giao dịch'}
+            <span className="flex items-center justify-center">
+              {showBatchMode ? (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M3 10h18M3 16h18" />
+                  </svg>
+                  Chế độ thêm đơn lẻ
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Chế độ thêm nhiều giao dịch
+                </>
+              )}
             </span>
             {!showBatchMode && savedTransactionsCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-7 w-7 flex items-center justify-center animate-bounce shadow-lg font-bold">
                 {savedTransactionsCount}
               </span>
             )}
