@@ -58,39 +58,32 @@ function App() {
         
         <TokenSettings />
         
-        {showBatchMode ? (
-          <UnifiedTransactionForm
-            mode="batch"
-            initialFormData={currentFormData}
-            onClose={() => {
-              setShowBatchMode(false)
-              setSavedTransactionsCount(0) // Reset count when closing batch mode
-              setCurrentFormData(null) // Clear form data
-            }} 
-          />
-        ) : (
-          <>
-            <div className="mb-4">
-              <button
-                onClick={() => {
-                  setShowBatchMode(true)
-                }}
-                className="w-full bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 transition-colors relative"
-              >
-                <span>Chế độ thêm nhiều giao dịch</span>
-                {savedTransactionsCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
-                    {savedTransactionsCount}
-                  </span>
-                )}
-              </button>
-            </div>
-            <UnifiedTransactionForm 
-              mode="single" 
-              onFormDataChange={setCurrentFormData} 
-            />
-          </>
-        )}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowBatchMode(!showBatchMode)}
+            className="w-full bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 transition-colors relative"
+          >
+            <span>
+              {showBatchMode ? 'Chế độ thêm đơn lẻ' : 'Chế độ thêm nhiều giao dịch'}
+            </span>
+            {!showBatchMode && savedTransactionsCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
+                {savedTransactionsCount}
+              </span>
+            )}
+          </button>
+        </div>
+        
+        <UnifiedTransactionForm
+          mode={showBatchMode ? "batch" : "single"}
+          initialFormData={showBatchMode ? currentFormData : null}
+          onClose={showBatchMode ? () => {
+            setShowBatchMode(false)
+            setSavedTransactionsCount(0)
+            setCurrentFormData(null)
+          } : undefined}
+          onFormDataChange={!showBatchMode ? setCurrentFormData : undefined}
+        />
       </div>
     </div>
   )

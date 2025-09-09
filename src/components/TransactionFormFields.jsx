@@ -1,4 +1,3 @@
-import React from 'react'
 import { TRANSACTION_TYPES } from '../constants/categories'
 import DatePicker from './DatePicker'
 import AmountInput from './AmountInput'

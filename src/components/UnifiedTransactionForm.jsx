@@ -233,14 +233,8 @@ const UnifiedTransactionForm = ({
     <div className="space-y-4 mb-4">
       {/* Transaction Queue */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-4">
           <h2 className="text-lg font-medium">Thêm nhiều giao dịch</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
-          >
-            ×
-          </button>
         </div>
         
         <div className="mb-4">
