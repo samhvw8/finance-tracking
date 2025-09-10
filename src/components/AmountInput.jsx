@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formatCurrency, parseCurrency } from '../utils/formatters'
 
-const AmountInput = ({ value, onChange, className = '' }) => {
+const AmountInput = ({ id, value, onChange, className = '', ...props }) => {
   const [displayValue, setDisplayValue] = useState('')
   
   useEffect(() => {
@@ -66,6 +66,7 @@ const AmountInput = ({ value, onChange, className = '' }) => {
   
   return (
     <input
+      id={id}
       type="text"
       inputMode="numeric"
       value={displayValue}
@@ -74,6 +75,7 @@ const AmountInput = ({ value, onChange, className = '' }) => {
       onBlur={handleBlur}
       placeholder="0 ₫"
       className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300 placeholder-gray-400 ${className}`}
+      {...props}
     />
   )
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { formatDateForInput } from '../utils/formatters'
 
-const DatePicker = ({ value, onChange, className = '' }) => {
+const DatePicker = ({ id, value, onChange, className = '', ...props }) => {
   const [inputValue, setInputValue] = useState(formatDateForInput(value))
   
   // Update input value when parent value changes
@@ -37,12 +37,14 @@ const DatePicker = ({ value, onChange, className = '' }) => {
   
   return (
     <input
+      id={id}
       type="date"
       value={inputValue}
       onChange={handleInputChange}
       onBlur={handleBlur}
       max={maxDate}
       className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300 ${className}`}
+      {...props}
     />
   )
 }

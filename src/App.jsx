@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import UnifiedTransactionForm from './components/UnifiedTransactionForm'
 import TokenSettings from './components/TokenSettings'
+import LoadingSkeleton from './components/LoadingSkeleton'
 import { initDB, indexedDBService } from './services/indexedDB'
 import { categoriesManager } from './services/categoriesManager'
 
@@ -47,11 +48,11 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="container mx-auto px-4 py-6 sm:py-12 max-w-md">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+        <header className="mb-8 text-center" role="banner">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight" id="main-title">
             Theo Dõi Chi Tiêu
           </h1>
-          <p className="text-gray-600 mt-3 text-sm sm:text-base">
+          <p className="text-gray-600 mt-3 text-sm sm:text-base" aria-describedby="main-title">
             Ghi chép giao dịch hàng ngày
           </p>
         </header>
@@ -60,10 +61,12 @@ function App() {
           <TokenSettings />
         </div>
         
-        <div className="mb-6">
+        <nav className="mb-6" role="navigation" aria-label="Chế độ giao dịch">
           <button
             onClick={() => setShowBatchMode(!showBatchMode)}
             className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 relative shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-medium"
+            aria-pressed={showBatchMode}
+            aria-describedby="mode-description"
           >
             <span className="flex items-center justify-center">
               {showBatchMode ? (
@@ -83,23 +86,37 @@ function App() {
               )}
             </span>
             {!showBatchMode && savedTransactionsCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-7 w-7 flex items-center justify-center animate-bounce shadow-lg font-bold">
+              <span 
+                className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-7 w-7 flex items-center justify-center animate-bounce shadow-lg font-bold"
+                role="status"
+                aria-label={`${savedTransactionsCount} giao dịch chưa lưu`}
+              >
                 {savedTransactionsCount}
               </span>
             )}
           </button>
-        </div>
+          <div id="mode-description" className="sr-only">
+            {showBatchMode 
+              ? 'Đang ở chế độ thêm nhiều giao dịch. Bạn có thể thêm nhiều giao dịch vào danh sách trước khi lưu tất cả cùng một lúc.'
+              : 'Đang ở chế độ thêm đơn lẻ. Mỗi giao dịch sẽ được lưu ngay lập tức.'
+            }
+          </div>
+        </nav>
         
-        <UnifiedTransactionForm
-          mode={showBatchMode ? "batch" : "single"}
-          initialFormData={showBatchMode ? currentFormData : null}
-          onClose={showBatchMode ? () => {
-            setShowBatchMode(false)
-            setSavedTransactionsCount(0)
-            setCurrentFormData(null)
-          } : undefined}
-          onFormDataChange={!showBatchMode ? setCurrentFormData : undefined}
-        />
+        <main role="main" aria-label="Form giao dịch">
+          <React.Suspense fallback={<LoadingSkeleton />}>
+            <UnifiedTransactionForm
+              mode={showBatchMode ? "batch" : "single"}
+              initialFormData={showBatchMode ? currentFormData : null}
+              onClose={showBatchMode ? () => {
+                setShowBatchMode(false)
+                setSavedTransactionsCount(0)
+                setCurrentFormData(null)
+              } : undefined}
+              onFormDataChange={!showBatchMode ? setCurrentFormData : undefined}
+            />
+          </React.Suspense>
+        </main>
       </div>
     </div>
   )
