@@ -69,15 +69,21 @@ export const createTransaction = async (transactionData) => {
 }
 
 export const buildTransactionPayload = (formData) => {
-  return {
+  let data =  {
     'Date': formData.date,
     'Type': formData.type,
     'Category': formData.category,
     'Tên': formData.name,
     'Số Tiền': formData.amount,
     'Note': formData.note || '',
-    'Month': "=TEXT(DATEVALUE(\"" + formData.month + "\"), \"MM/yyyy\")" // Formula to ensure correct date format in Google Sheets
+    'Month': "=TEXT(DATEVALUE(\"" + formData.month + "\"), \"MM/yyyy\")", // Formula to ensure correct date format in Google Sheets
   }
+
+  if (formData.type === 'Chi Tiêu') {
+    data['Chi Tiêu Category'] = `=IFERROR(INDEX('Setup Finanace'!$G$15:$G$24,MATCH("${formData.category}",'Setup Finanace'!$F$15:$F$24,0)),"")`
+  }
+
+  return data;
 }
 
 export const fetchCategories = async () => {
