@@ -1,10 +1,201 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatDateForSheet } from '../utils/formatters'
 import { createInvestmentTransaction, createBatchInvestmentTransactions, buildInvestmentTransactionPayload } from '../services/sheetdb'
 import { indexedDBService } from '../services/indexedDB'
 import { investmentAccountsManager } from '../services/investmentAccountsManager'
 import { INVESTMENT_TYPES } from '../constants/categories'
 import DatePicker from './DatePicker'
+
+// Form fields component - extracted outside to prevent re-creation on every render
+const FormFields = ({ formData, setFormData, accounts, handleInputChange, handleNumberInput, handleCurrencyInput }) => (
+  <div className="space-y-4">
+    {/* Transaction Type - Prominent on mobile */}
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl border border-blue-100">
+      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+        Loại Giao Dịch
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setFormData(prev => ({ ...prev, type: INVESTMENT_TYPES.BUY }))}
+          className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+            formData.type === INVESTMENT_TYPES.BUY
+              ? 'bg-green-500 text-white shadow-lg scale-105'
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'
+          }`}
+        >
+          <span className="flex items-center justify-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Mua
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFormData(prev => ({ ...prev, type: INVESTMENT_TYPES.SELL }))}
+          className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+            formData.type === INVESTMENT_TYPES.SELL
+              ? 'bg-red-500 text-white shadow-lg scale-105'
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-red-300'
+          }`}
+        >
+          <span className="flex items-center justify-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+            Bán
+          </span>
+        </button>
+      </div>
+    </div>
+
+    {/* Date and Account */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="bg-white p-3 rounded-xl border border-gray-200">
+        <DatePicker
+          label="Ngày"
+          value={formData.date}
+          onChange={(date) => setFormData(prev => ({ ...prev, date }))}
+          required
+        />
+      </div>
+
+      <div className="bg-white p-3 rounded-xl border border-gray-200">
+        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+          Tài Khoản
+        </label>
+        <select
+          name="investmentAccount"
+          value={formData.investmentAccount}
+          onChange={handleInputChange}
+          className="w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-gray-700"
+        >
+          {accounts.length === 0 ? (
+            <option value="INV001">INV001</option>
+          ) : (
+            accounts.map(account => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))
+          )}
+        </select>
+      </div>
+    </div>
+
+    {/* Asset Name - Full width for better typing */}
+    <div className="bg-white p-4 rounded-xl border-2 border-dashed border-blue-200">
+      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+        Tên Tài Sản <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        name="assetName"
+        value={formData.assetName}
+        onChange={handleInputChange}
+        placeholder="VD: VNM, BTC, TSLA..."
+        className="w-full px-4 py-3 text-lg font-semibold border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+        required
+        autoCapitalize="characters"
+      />
+    </div>
+
+    {/* Quantity and Price */}
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-white p-3 rounded-xl border border-gray-200">
+        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+          Số Lượng <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          inputMode="decimal"
+          name="quantity"
+          value={formData.quantity}
+          onChange={handleNumberInput}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-base font-semibold border-0 bg-blue-50 rounded-lg focus:ring-2 focus:ring-blue-500 text-blue-700"
+          required
+        />
+      </div>
+
+      <div className="bg-white p-3 rounded-xl border border-gray-200">
+        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+          Giá/ĐV <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          inputMode="numeric"
+          name="pricePerUnit"
+          value={formData.pricePerUnit}
+          onChange={handleCurrencyInput}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-base font-semibold border-0 bg-green-50 rounded-lg focus:ring-2 focus:ring-green-500 text-green-700"
+          required
+        />
+      </div>
+    </div>
+
+    {/* Total Amount - Highlighted */}
+    <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-4 rounded-xl shadow-lg">
+      <label className="block text-xs font-semibold text-purple-100 uppercase tracking-wide mb-2">
+        💰 Tổng Tiền
+      </label>
+      <div className="text-2xl font-bold text-white">
+        {formData.totalAmount || '0'} ₫
+      </div>
+    </div>
+
+    {/* Fees */}
+    <div className="bg-white p-3 rounded-xl border border-gray-200">
+      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+        Phí Giao Dịch
+      </label>
+      <input
+        type="text"
+        inputMode="numeric"
+        name="fees"
+        value={formData.fees}
+        onChange={handleCurrencyInput}
+        placeholder="0"
+        className="w-full px-3 py-2.5 text-sm border-0 bg-orange-50 rounded-lg focus:ring-2 focus:ring-orange-500 text-orange-700 font-medium"
+      />
+    </div>
+
+    {/* Realized P&L for Sell */}
+    {formData.type === INVESTMENT_TYPES.SELL && (
+      <div className="bg-white p-3 rounded-xl border border-gray-200 animate-fadeIn">
+        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+          Lãi/Lỗ Thực Hiện
+        </label>
+        <input
+          type="text"
+          inputMode="numeric"
+          name="realizedPL"
+          value={formData.realizedPL}
+          onChange={handleCurrencyInput}
+          placeholder="0"
+          className="w-full px-3 py-2.5 text-sm border-0 bg-yellow-50 rounded-lg focus:ring-2 focus:ring-yellow-500 text-yellow-700 font-medium"
+        />
+      </div>
+    )}
+
+    {/* Notes */}
+    <div className="bg-white p-3 rounded-xl border border-gray-200">
+      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+        Ghi Chú
+      </label>
+      <textarea
+        name="notes"
+        value={formData.notes}
+        onChange={handleInputChange}
+        rows="2"
+        placeholder="Thêm ghi chú (tùy chọn)..."
+        className="w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-gray-300 resize-none placeholder-gray-400"
+      />
+    </div>
+  </div>
+)
 
 const InvestmentTransactionForm = ({
   mode = 'single', // 'single' or 'batch'
@@ -310,180 +501,67 @@ const InvestmentTransactionForm = ({
     </div>
   )
 
-  // Form fields
-  const FormFields = () => (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        <DatePicker
-          label="Ngày"
-          value={formData.date}
-          onChange={(date) => setFormData(prev => ({ ...prev, date }))}
-          required
-        />
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tài khoản
-          </label>
-          <select
-            name="investmentAccount"
-            value={formData.investmentAccount}
-            onChange={handleInputChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {accounts.length === 0 ? (
-              <option value="INV001">INV001 (Default)</option>
-            ) : (
-              accounts.map(account => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Loại giao dịch
-        </label>
-        <select
-          name="type"
-          value={formData.type}
-          onChange={handleInputChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value={INVESTMENT_TYPES.BUY}>Mua (Buy)</option>
-          <option value={INVESTMENT_TYPES.SELL}>Bán (Sell)</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Tên tài sản <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          name="assetName"
-          value={formData.assetName}
-          onChange={handleInputChange}
-          placeholder="VD: VNM, BTC, EURUSD..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Số lượng <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="quantity"
-            value={formData.quantity}
-            onChange={handleNumberInput}
-            placeholder="0"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Giá / đơn vị <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="pricePerUnit"
-            value={formData.pricePerUnit}
-            onChange={handleCurrencyInput}
-            placeholder="0"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tổng tiền
-          </label>
-          <input
-            type="text"
-            name="totalAmount"
-            value={formData.totalAmount}
-            readOnly
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phí giao dịch
-          </label>
-          <input
-            type="text"
-            name="fees"
-            value={formData.fees}
-            onChange={handleCurrencyInput}
-            placeholder="0"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {formData.type === INVESTMENT_TYPES.SELL && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Lãi/Lỗ thực hiện
-          </label>
-          <input
-            type="text"
-            name="realizedPL"
-            value={formData.realizedPL}
-            onChange={handleCurrencyInput}
-            placeholder="0"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      )}
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Ghi chú
-        </label>
-        <textarea
-          name="notes"
-          value={formData.notes}
-          onChange={handleInputChange}
-          rows="2"
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-        />
-      </div>
-    </>
-  )
-
   // Single mode render
   if (mode === 'single') {
     return (
       <form
         ref={formRef}
         onSubmit={handleSingleSubmit}
-        className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-6 sm:p-8 space-y-5 animate-slideIn"
+        className="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 sm:p-6 animate-slideIn pb-24 sm:pb-6"
       >
-        <FormFields />
+        <FormFields
+          formData={formData}
+          setFormData={setFormData}
+          accounts={accounts}
+          handleInputChange={handleInputChange}
+          handleNumberInput={handleNumberInput}
+          handleCurrencyInput={handleCurrencyInput}
+        />
 
         <MessageDisplay />
 
+        {/* Desktop Save Button */}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-6 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:ring-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg"
+          className="hidden sm:flex w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3.5 px-6 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:ring-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg items-center justify-center mt-6"
         >
-          {isSubmitting ? 'Đang lưu...' : 'Lưu Giao Dịch'}
+          {isSubmitting ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Đang lưu...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Lưu Giao Dịch
+            </>
+          )}
+        </button>
+
+        {/* Mobile Floating Action Button */}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="sm:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110 z-50 flex items-center justify-center"
+          style={{ width: '72px', height: '72px' }}
+          aria-label="Lưu giao dịch"
+        >
+          {isSubmitting ? (
+            <svg className="animate-spin h-7 w-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
         </button>
       </form>
     )
@@ -558,7 +636,14 @@ const InvestmentTransactionForm = ({
 
       {/* Form */}
       <section className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-6 space-y-5 animate-slideIn">
-        <FormFields />
+        <FormFields
+          formData={formData}
+          setFormData={setFormData}
+          accounts={accounts}
+          handleInputChange={handleInputChange}
+          handleNumberInput={handleNumberInput}
+          handleCurrencyInput={handleCurrencyInput}
+        />
 
         <MessageDisplay />
 
