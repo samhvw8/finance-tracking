@@ -1,9 +1,11 @@
 const DB_NAME = 'FinanceTrackingDB'
-const DB_VERSION = 1
+const DB_VERSION = 3
 const STORES = {
   CATEGORIES: 'categories',
   SETTINGS: 'settings',
-  TRANSACTIONS_QUEUE: 'transactionsQueue'
+  TRANSACTIONS_QUEUE: 'transactionsQueue',
+  INVESTMENT_TRANSACTIONS_QUEUE: 'investmentTransactionsQueue',
+  INVESTMENT_ACCOUNTS: 'investmentAccounts'
 }
 
 class IndexedDBService {
@@ -23,23 +25,36 @@ class IndexedDBService {
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result
-        
+
         // Categories store
         if (!db.objectStoreNames.contains(STORES.CATEGORIES)) {
           db.createObjectStore(STORES.CATEGORIES, { keyPath: 'id' })
         }
-        
+
         // Settings store (for API token)
         if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
           db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' })
         }
-        
+
         // Transactions queue for batch processing
         if (!db.objectStoreNames.contains(STORES.TRANSACTIONS_QUEUE)) {
-          db.createObjectStore(STORES.TRANSACTIONS_QUEUE, { 
+          db.createObjectStore(STORES.TRANSACTIONS_QUEUE, {
             keyPath: 'id',
-            autoIncrement: true 
+            autoIncrement: true
           })
+        }
+
+        // Investment transactions queue for batch processing
+        if (!db.objectStoreNames.contains(STORES.INVESTMENT_TRANSACTIONS_QUEUE)) {
+          db.createObjectStore(STORES.INVESTMENT_TRANSACTIONS_QUEUE, {
+            keyPath: 'id',
+            autoIncrement: true
+          })
+        }
+
+        // Investment accounts store
+        if (!db.objectStoreNames.contains(STORES.INVESTMENT_ACCOUNTS)) {
+          db.createObjectStore(STORES.INVESTMENT_ACCOUNTS, { keyPath: 'id' })
         }
       }
     })
@@ -138,10 +153,80 @@ class IndexedDBService {
   async clearAllQueue() {
     const tx = this.db.transaction([STORES.TRANSACTIONS_QUEUE], 'readwrite')
     const store = tx.objectStore(STORES.TRANSACTIONS_QUEUE)
-    
+
     return new Promise((resolve, reject) => {
       const request = store.clear()
       request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  // Investment transaction queue methods
+  async addToInvestmentQueue(transaction) {
+    const tx = this.db.transaction([STORES.INVESTMENT_TRANSACTIONS_QUEUE], 'readwrite')
+    const store = tx.objectStore(STORES.INVESTMENT_TRANSACTIONS_QUEUE)
+
+    return new Promise((resolve, reject) => {
+      const request = store.add({
+        ...transaction,
+        queuedAt: new Date().toISOString()
+      })
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  async getQueuedInvestmentTransactions() {
+    const tx = this.db.transaction([STORES.INVESTMENT_TRANSACTIONS_QUEUE], 'readonly')
+    const store = tx.objectStore(STORES.INVESTMENT_TRANSACTIONS_QUEUE)
+
+    return new Promise((resolve, reject) => {
+      const request = store.getAll()
+      request.onsuccess = () => resolve(request.result || [])
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  async clearInvestmentQueue() {
+    const tx = this.db.transaction([STORES.INVESTMENT_TRANSACTIONS_QUEUE], 'readwrite')
+    const store = tx.objectStore(STORES.INVESTMENT_TRANSACTIONS_QUEUE)
+
+    return new Promise((resolve, reject) => {
+      const request = store.clear()
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  // Investment accounts methods
+  async saveInvestmentAccounts(accounts) {
+    const tx = this.db.transaction([STORES.INVESTMENT_ACCOUNTS], 'readwrite')
+    const store = tx.objectStore(STORES.INVESTMENT_ACCOUNTS)
+
+    await store.clear()
+
+    for (const account of accounts) {
+      await store.put({
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        updatedAt: new Date().toISOString()
+      })
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  }
+
+  async getInvestmentAccounts() {
+    const tx = this.db.transaction([STORES.INVESTMENT_ACCOUNTS], 'readonly')
+    const store = tx.objectStore(STORES.INVESTMENT_ACCOUNTS)
+
+    return new Promise((resolve, reject) => {
+      const request = store.getAll()
+      request.onsuccess = () => resolve(request.result || [])
       request.onerror = () => reject(request.error)
     })
   }

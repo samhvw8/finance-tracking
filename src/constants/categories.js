@@ -1,8 +1,8 @@
 export const TRANSACTION_TYPES = {
   INCOME: 'Thu Nhập',
   EXPENSE: 'Chi Tiêu',
-  INVESTMENT: 'Đầu Tư',
-  WITHDRAW_INVESTMENT: 'Rút Đầu Tư'
+  TRANSFER_TO_INVESTMENT: 'Chuyển Tiền Vào Tài Khoản',
+  WITHDRAW_FROM_INVESTMENT: 'Rút Tiền Ra Tài Khoản'
 }
 
 export const CATEGORIES = {
@@ -23,18 +23,31 @@ export const CATEGORIES = {
     'Hóa Đơn',
     'Khác'
   ],
-  [TRANSACTION_TYPES.INVESTMENT]: [
-    'Chứng Khoán',
-    'Tiền Gửi',
-    'Vàng',
-    'Bất Động Sản',
-    'Khác'
+  [TRANSACTION_TYPES.TRANSFER_TO_INVESTMENT]: [
+    'Cổ phiếu Blue chip',
+    'Cổ phiếu Việt Nam',
+    'Tiết kiệm Ngân Hàng',
+    'Vàng'
   ],
-  [TRANSACTION_TYPES.WITHDRAW_INVESTMENT]: [
-    'Chứng Khoán',
-    'Tiền Gửi',
-    'Vàng',
-    'Bất Động Sản',
-    'Khác'
+  [TRANSACTION_TYPES.WITHDRAW_FROM_INVESTMENT]: [
+    'Cổ phiếu Blue chip',
+    'Cổ phiếu Việt Nam',
+    'Tiết kiệm Ngân Hàng',
+    'Vàng'
   ]
+}
+
+// Investment transaction types
+export const INVESTMENT_TYPES = {
+  BUY: 'Buy',
+  SELL: 'Sell'
+}
+
+// Investment asset types
+export const ASSET_TYPES = {
+  STOCKS: 'Stocks',
+  CRYPTO: 'Crypto',
+  FOREX: 'Forex',
+  BONDS: 'Bonds',
+  OTHER: 'Other'
 }

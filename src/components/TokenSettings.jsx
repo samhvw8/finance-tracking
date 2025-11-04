@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { categoriesManager } from '../services/categoriesManager'
+import { investmentAccountsManager } from '../services/investmentAccountsManager'
 import { indexedDBService } from '../services/indexedDB'
 
 const TokenSettings = () => {
   const [token, setToken] = useState('')
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
   const [showToken, setShowToken] = useState(false)
   const [isEditingToken, setIsEditingToken] = useState(false)
   const [message, setMessage] = useState('')
@@ -38,7 +40,7 @@ const TokenSettings = () => {
   
   const handleReloadCategories = async () => {
     setIsLoadingCategories(true)
-    
+
     try {
       await categoriesManager.loadFromAPI()
       showMessage('Danh mục đã được cập nhật!', 'success')
@@ -53,6 +55,24 @@ const TokenSettings = () => {
       setIsLoadingCategories(false)
     }
   }
+
+  const handleReloadAccounts = async () => {
+    setIsLoadingAccounts(true)
+
+    try {
+      await investmentAccountsManager.refresh()
+      showMessage('Danh sách tài khoản đã được cập nhật!', 'success')
+    } catch (error) {
+      console.error('Error reloading accounts:', error)
+      if (error.message.includes('401') || error.message.includes('Authentication')) {
+        showMessage('Token không hợp lệ. Vui lòng kiểm tra lại!', 'error')
+      } else {
+        showMessage('Lỗi khi tải danh sách tài khoản. Vui lòng thử lại!', 'error')
+      }
+    } finally {
+      setIsLoadingAccounts(false)
+    }
+  }
   
   const showMessage = (text, type) => {
     setMessage({ text, type })
@@ -60,12 +80,11 @@ const TokenSettings = () => {
   }
   
   return (
-    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-5 mb-4 animate-scaleIn">
-      <div className="space-y-4">
-        {/* Token Section */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-700">API Token</h3>
+    <div className="space-y-3">
+      {/* Token Section */}
+      <div className="bg-white rounded-lg p-3 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">API Token</h3>
             {!isEditingToken && (
               <button
                 onClick={() => setIsEditingToken(true)}
@@ -113,63 +132,90 @@ const TokenSettings = () => {
               </div>
             </div>
           ) : (
-            <div className="text-sm text-gray-600">
+            <div className="text-xs text-gray-500">
               {token ? '••••••••••••••••' : 'Chưa cài đặt'}
             </div>
           )}
-        </div>
-        
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg p-3 shadow-sm space-y-2">
+        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3">Thao Tác</h3>
+
         {/* Google Sheets Link */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <span className="text-sm text-gray-700">Xem dữ liệu</span>
-          <a
-            href="https://docs.google.com/spreadsheets/d/1mmENKogRPN-tNqPET8NUJsEpFR_zoldxfTpkLl43-tY/edit?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 text-sm rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md flex items-center"
-            aria-label="Mở Google Sheets để xem dữ liệu giao dịch"
-          >
-            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-              <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
-              <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
-            </svg>
-            Google Sheets
-          </a>
-        </div>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1mmENKogRPN-tNqPET8NUJsEpFR_zoldxfTpkLl43-tY/edit?usp=sharing"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-blue-50 text-blue-700 py-2 px-3 text-xs rounded-lg hover:bg-blue-100 transition-all duration-200 flex items-center justify-center font-medium border border-blue-200"
+          aria-label="Mở Google Sheets để xem dữ liệu giao dịch"
+        >
+          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
+          </svg>
+          Xem Google Sheets
+        </a>
 
         {/* Refresh Categories */}
-        <div className="flex items-center justify-between pt-2 border-t">
-          <span className="text-sm text-gray-700">Cập nhật danh mục</span>
-          <button
-            onClick={handleReloadCategories}
-            disabled={isLoadingCategories}
-            className="bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 text-sm rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md"
-          >
-            {isLoadingCategories ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Đang tải...
-              </span>
-            ) : (
-              'Tải lại'
-            )}
-          </button>
-        </div>
-        
-        {/* Message Display */}
-        {message && (
-          <div className={`p-3 rounded-xl text-sm text-center animate-fadeIn ${
-            message.type === 'error' 
-              ? 'bg-red-100 text-red-700 border border-red-200' 
-              : 'bg-green-100 text-green-700 border border-green-200'
-          }`}>
-            {message.text}
-          </div>
-        )}
+        <button
+          onClick={handleReloadCategories}
+          disabled={isLoadingCategories}
+          className="w-full bg-green-50 text-green-700 py-2 px-3 text-xs rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center font-medium border border-green-200"
+        >
+          {isLoadingCategories ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Đang tải...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Tải Lại Danh Mục
+            </>
+          )}
+        </button>
+
+        {/* Refresh Investment Accounts */}
+        <button
+          onClick={handleReloadAccounts}
+          disabled={isLoadingAccounts}
+          className="w-full bg-purple-50 text-purple-700 py-2 px-3 text-xs rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center font-medium border border-purple-200"
+        >
+          {isLoadingAccounts ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Đang tải...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Tải Lại Tài Khoản
+            </>
+          )}
+        </button>
       </div>
+
+      {/* Message Display */}
+      {message && (
+        <div className={`p-2 rounded-lg text-xs text-center animate-fadeIn ${
+          message.type === 'error'
+            ? 'bg-red-100 text-red-700 border border-red-200'
+            : 'bg-green-100 text-green-700 border border-green-200'
+        }`}>
+          {message.text}
+        </div>
+      )}
     </div>
   )
 }
