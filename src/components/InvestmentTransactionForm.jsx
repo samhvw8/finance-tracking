@@ -57,6 +57,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
           label="Ngày"
           value={formData.date}
           onChange={(date) => setFormData(prev => ({ ...prev, date }))}
+          allowFuture={true}
           required
         />
       </div>

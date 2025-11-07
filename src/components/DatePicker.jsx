@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { formatDateForInput } from '../utils/formatters'
 
-const DatePicker = ({ id, value, onChange, className = '', ...props }) => {
+const DatePicker = ({ id, value, onChange, allowFuture = false, className = '', ...props }) => {
   const [inputValue, setInputValue] = useState(formatDateForInput(value))
-  
+
   // Update input value when parent value changes
   useEffect(() => {
     setInputValue(formatDateForInput(value))
   }, [value])
-  
+
   const handleInputChange = (e) => {
     // Allow user to type freely, including leading zeros
     setInputValue(e.target.value)
   }
-  
+
   const handleBlur = (e) => {
     const inputDate = e.target.value
-    
+
     // Check if the input is a valid date string
     if (inputDate && !isNaN(Date.parse(inputDate))) {
       const dateValue = new Date(inputDate)
@@ -27,14 +27,14 @@ const DatePicker = ({ id, value, onChange, className = '', ...props }) => {
         return
       }
     }
-    
+
     // If invalid, reset to the current value
     setInputValue(formatDateForInput(value))
   }
-  
+
   const today = new Date()
-  const maxDate = formatDateForInput(today)
-  
+  const maxDate = allowFuture ? undefined : formatDateForInput(today)
+
   return (
     <input
       id={id}
