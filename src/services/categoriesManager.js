@@ -32,8 +32,8 @@ class CategoriesManager {
         this.categories = {
           [TRANSACTION_TYPES.INCOME]: ['Lương', 'Thưởng', 'Khác'],
           [TRANSACTION_TYPES.EXPENSE]: ['Ăn Uống', 'Mua Sắm', 'Di Chuyển', 'Khác'],
-          [TRANSACTION_TYPES.INVESTMENT]: ['Chứng Khoán', 'Tiết Kiệm', 'Khác'],
-          [TRANSACTION_TYPES.WITHDRAW_INVESTMENT]: ['Chứng Khoán', 'Tiết Kiệm', 'Khác']
+          [TRANSACTION_TYPES.TRANSFER_TO_INVESTMENT]: ['Chứng Khoán', 'Tiết Kiệm', 'Khác'],
+          [TRANSACTION_TYPES.WITHDRAW_FROM_INVESTMENT]: ['Chứng Khoán', 'Tiết Kiệm', 'Khác']
         }
         this.notifyListeners()
       }
@@ -65,8 +65,8 @@ class CategoriesManager {
     return this.categories || {
       [TRANSACTION_TYPES.INCOME]: [],
       [TRANSACTION_TYPES.EXPENSE]: [],
-      [TRANSACTION_TYPES.INVESTMENT]: [],
-      [TRANSACTION_TYPES.WITHDRAW_INVESTMENT]: []
+      [TRANSACTION_TYPES.TRANSFER_TO_INVESTMENT]: [],
+      [TRANSACTION_TYPES.WITHDRAW_FROM_INVESTMENT]: []
     }
   }
 
