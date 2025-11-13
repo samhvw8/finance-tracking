@@ -1,6 +1,15 @@
 # Project Overview
 
-This is a finance tracking web application that allows users to add transactions (income/expense/invest/withdraw-invest) to Google Sheets via the SheetDB API. The app features both single and batch transaction modes, dynamic categories loaded from Google Sheets, and secure token management. Designed to work on both mobile and desktop devices and deployed to Cloudflare Pages.
+This is a comprehensive finance tracking web application that allows users to manage both regular transactions and detailed investment transactions via Google Sheets and the SheetDB API. The app features:
+
+- **Main Transactions**: Income, expenses, and account transfers with single and batch modes
+- **Investment Tracking**: Detailed buy/sell transactions with asset tracking, fees, and P&L
+- **Linked Transactions**: Automatically create cash flow transactions when recording investments
+- **Dynamic Categories**: Categories loaded from Google Sheets for flexibility
+- **Offline-First**: IndexedDB caching for offline use and smart recovery
+- **Secure Token Management**: API token configurable via UI or environment
+- **Mobile-Optimized**: Responsive design for both mobile and desktop devices
+- **Cloudflare Pages Deployment**: Fast, globally distributed hosting
 
 # API Integration
 
@@ -16,7 +25,7 @@ This is a finance tracking web application that allows users to add transactions
 
 The Google Sheet "Giao Dịch" has the following columns:
 - **Date**: Transaction date (format: MM/dd/yyyy for sheet, display as "Day-dd/MM/yyyy")
-- **Type**: Transaction type (Thu Nhập | Chi Tiêu | Đầu Tư | Rút Đầu Tư)
+- **Type**: Transaction type (Thu Nhập | Chi Tiêu | Chuyển Tiền Vào Tài Khoản | Rút Tiền Ra Tài Khoản)
 - **Category**: Category based on type (loaded dynamically from Setup sheet)
 - **Tên**: Transaction name/description
 - **Số Tiền**: Amount (numbers without currency symbol for sheet, display with VND)
@@ -26,15 +35,29 @@ The Google Sheet "Giao Dịch" has the following columns:
 
 The "Setup Finanace" sheet contains dynamic categories with columns:
 - **Thu Nhập**: Income categories
-- **Chi Tiêu**: Expense categories  
-- **Đầu Tư**: Investment categories
-- **Rút Đầu Tư**: Withdraw investment categories
+- **Chi Tiêu**: Expense categories
+- **Chuyển Tiền Vào Tài Khoản**: Transfer to investment account categories
+- **Rút Tiền Ra Tài Khoản**: Withdraw from investment account categories
 
 ## Transaction Types (Vietnamese)
 - Thu Nhập (Income)
 - Chi Tiêu (Expense)
-- Đầu Tư (Investment)
-- Rút Đầu Tư (Withdraw Investment)
+- Chuyển Tiền Vào Tài Khoản (Transfer to Investment Account)
+- Rút Tiền Ra Tài Khoản (Withdraw from Investment Account)
+
+## Investment Transaction Data Structure
+
+The Google Sheet "Giao Dich Investment" has the following columns for detailed investment tracking:
+- **Date**: Transaction date
+- **Investment Account**: Account identifier (e.g., INV001)
+- **Type**: Buy or Sell
+- **Asset Name**: Name of the asset (e.g., VNM, BTC, TSLA)
+- **Quantity**: Number of units
+- **Price per Unit**: Price per unit in VND
+- **Total Amount**: Total transaction amount (Quantity × Price per Unit)
+- **Fees**: Transaction fees
+- **Realized P&L**: Profit/Loss for sell transactions
+- **Notes**: Optional notes
 
 ## API Request Example
 ```javascript
@@ -83,19 +106,24 @@ npm run deploy
 finance-tracking/
 ├── src/
 │   ├── components/           # Reusable UI components
-│   │   ├── TransactionForm.jsx      # Single transaction form
-│   │   ├── BatchTransactionForm.jsx # Batch transaction form
-│   │   ├── TokenSettings.jsx        # API token and category refresh UI
-│   │   ├── DatePicker.jsx          # Date input component
-│   │   └── AmountInput.jsx         # Currency input with formatting
+│   │   ├── UnifiedTransactionForm.jsx    # Unified form for single/batch transactions
+│   │   ├── TransactionFormFields.jsx     # Shared form fields component
+│   │   ├── InvestmentTransactionForm.jsx # Investment transaction form (Buy/Sell)
+│   │   ├── TokenSettings.jsx             # API token and category refresh UI
+│   │   ├── DatePicker.jsx                # Date input component
+│   │   ├── AmountInput.jsx               # Currency input with formatting
+│   │   └── Sidebar.jsx                   # Navigation sidebar
 │   ├── services/             # API integration and data management
-│   │   ├── sheetdb.js              # SheetDB API client
-│   │   ├── indexedDB.js            # Browser storage service
-│   │   └── categoriesManager.js    # Dynamic category management
+│   │   ├── sheetdb.js                    # SheetDB API client with linked transaction support
+│   │   ├── indexedDB.js                  # Browser storage service
+│   │   ├── categoriesManager.js          # Dynamic category management
+│   │   └── investmentAccountsManager.js  # Investment accounts management
+│   ├── hooks/                # Custom React hooks
+│   │   └── useTransactionForm.js         # Form state and logic hook
 │   ├── utils/                # Utility functions
-│   │   └── formatters.js           # Currency and date formatting
+│   │   └── formatters.js                 # Currency and date formatting
 │   ├── constants/            # App constants
-│   │   └── categories.js           # Transaction type constants
+│   │   └── categories.js                 # Transaction type constants
 │   └── App.jsx               # Main application component
 ├── public/                   # Static assets
 └── package.json              # Project dependencies
@@ -112,7 +140,8 @@ finance-tracking/
 - **Display**: Vietnamese format "Day-DD/MM/YYYY" (e.g., "Thứ-17/04/2025")
 - **Payload**: Google Sheets format "MM/DD/YYYY" (e.g., "04/17/2025")
 - **Input**: Standard HTML5 date picker
-- Default to today's date, cannot be in the future
+- **Main Transactions**: Default to today's date, future dates allowed for scheduled transactions
+- **Investment Transactions**: Default to today's date, future dates allowed
 
 ## Category Management
 - **Dynamic Loading**: Categories fetched from "Setup Finanace" Google Sheet
@@ -129,10 +158,27 @@ finance-tracking/
 
 ## Form Validation
 - Amount must be a positive number
-- Date cannot be in the future
+- Date can be in the past, present, or future
 - Name field is optional (defaults to empty string "" if not provided)
 - Category field is optional (defaults to "Khác" if not selected)
 - Note field is optional
+
+## Investment Transactions
+- **Separate Sheet**: Investment transactions are stored in "Giao Dich Investment" sheet
+- **Detailed Tracking**: Track asset name, quantity, price per unit, fees, and realized P&L
+- **Investment Accounts**: Support for multiple investment accounts (loaded from "Investment Account" sheet)
+- **Transaction Types**: Buy (purchase assets) and Sell (liquidate assets)
+
+## Linked Transaction Feature
+When creating investment transactions, users can optionally create a linked transaction in the main "Giao Dịch" sheet:
+
+- **Purpose**: Track cash flow impact in main transaction sheet while maintaining detailed investment records
+- **Buy Transactions**: Creates "Chuyển Tiền Vào Tài Khoản" (Transfer to Investment Account) transaction
+- **Sell Transactions**: Creates "Rút Tiền Ra Tài Khoản" (Withdraw from Investment Account) transaction
+- **Auto-populate**: Linked transaction automatically uses same date, amount, and notes as investment transaction
+- **Category**: Uses asset name as the category in main transaction
+- **Checkbox Control**: Feature can be enabled/disabled via checkbox in investment form
+- **Batch Support**: Works in both single transaction and batch modes
 
 ## Token Security
 - **UI Configuration**: Token can be set via settings interface (masked input)
