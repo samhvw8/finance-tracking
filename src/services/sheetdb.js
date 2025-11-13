@@ -254,6 +254,40 @@ export const createBatchInvestmentTransactions = async (transactionsData) => {
   }
 }
 
+// Create investment transaction with linked main transaction
+export const createInvestmentWithLinkedTransaction = async (investmentData, mainTransactionData) => {
+  try {
+    // Create investment transaction
+    await createInvestmentTransaction(investmentData)
+
+    // Create linked main transaction
+    await createTransaction(mainTransactionData)
+
+    console.log('Both investment and linked transaction created successfully')
+    return { success: true }
+  } catch (error) {
+    console.error('Error creating investment with linked transaction:', error)
+    throw new Error('Không thể lưu giao dịch. Vui lòng thử lại.')
+  }
+}
+
+// Create batch investment transactions with linked main transactions
+export const createBatchInvestmentWithLinkedTransactions = async (investmentTransactionsData, mainTransactionsData) => {
+  try {
+    // Create batch investment transactions
+    await createBatchInvestmentTransactions(investmentTransactionsData)
+
+    // Create batch linked main transactions
+    await createBatchTransactions(mainTransactionsData)
+
+    console.log('Both batch investment and linked transactions created successfully')
+    return { success: true }
+  } catch (error) {
+    console.error('Error creating batch investment with linked transactions:', error)
+    throw new Error('Không thể lưu các giao dịch. Vui lòng thử lại.')
+  }
+}
+
 // Investment Accounts Functions
 export const fetchInvestmentAccounts = async () => {
   try {
