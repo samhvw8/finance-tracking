@@ -20,10 +20,11 @@ const TransactionFormFields = ({
           id="transaction-date"
           value={formData.date}
           onChange={(date) => handleInputChange('date', date)}
+          allowFuture={true}
           aria-describedby="date-help"
         />
         <div id="date-help" className="sr-only">
-          Chọn ngày thực hiện giao dịch. Không được chọn ngày trong tương lai.
+          Chọn ngày thực hiện giao dịch.
         </div>
       </div>
       
