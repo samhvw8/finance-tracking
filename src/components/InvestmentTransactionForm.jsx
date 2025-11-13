@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
-import { formatDateForSheet } from '../utils/formatters'
-import { createInvestmentTransaction, createBatchInvestmentTransactions, buildInvestmentTransactionPayload } from '../services/sheetdb'
+import { formatDateForSheet, formatCurrencyForPayload, formatMonthSheet } from '../utils/formatters'
+import {
+  createInvestmentTransaction,
+  createBatchInvestmentTransactions,
+  buildInvestmentTransactionPayload,
+  createInvestmentWithLinkedTransaction,
+  createBatchInvestmentWithLinkedTransactions,
+  buildTransactionPayload
+} from '../services/sheetdb'
 import { indexedDBService } from '../services/indexedDB'
 import { investmentAccountsManager } from '../services/investmentAccountsManager'
-import { INVESTMENT_TYPES } from '../constants/categories'
+import { INVESTMENT_TYPES, TRANSACTION_TYPES } from '../constants/categories'
 import DatePicker from './DatePicker'
 
 // Form fields component - extracted outside to prevent re-creation on every render
-const FormFields = ({ formData, setFormData, accounts, handleInputChange, handleNumberInput, handleCurrencyInput }) => (
+const FormFields = ({ formData, setFormData, accounts, handleInputChange, handleNumberInput, handleCurrencyInput, createLinkedTransaction, setCreateLinkedTransaction }) => (
   <div className="space-y-4">
     {/* Transaction Type - Prominent on mobile */}
     <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl border border-blue-100">
@@ -195,6 +202,24 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
         className="w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-gray-300 resize-none placeholder-gray-400"
       />
     </div>
+
+    {/* Linked Transaction Checkbox */}
+    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-xl border-2 border-green-200">
+      <label className="flex items-center cursor-pointer">
+        <input
+          type="checkbox"
+          checked={createLinkedTransaction}
+          onChange={(e) => setCreateLinkedTransaction(e.target.checked)}
+          className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+        />
+        <span className="ml-3 text-sm font-medium text-gray-700">
+          Tạo giao dịch liên kết trong "Giao Dịch" chính
+          <span className="block text-xs text-gray-500 mt-1">
+            {formData.type === INVESTMENT_TYPES.BUY ? 'Chuyển Tiền Vào Tài Khoản' : 'Rút Tiền Ra Tài Khoản'}
+          </span>
+        </span>
+      </label>
+    </div>
   </div>
 )
 
@@ -219,6 +244,7 @@ const InvestmentTransactionForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [transactions, setTransactions] = useState([])
+  const [createLinkedTransaction, setCreateLinkedTransaction] = useState(false)
 
   const formRef = useRef(null)
 
@@ -404,6 +430,23 @@ const InvestmentTransactionForm = ({
     })
   }
 
+  const buildLinkedMainTransactionPayload = (data) => {
+    // Determine transaction type based on investment type
+    const transactionType = data.type === INVESTMENT_TYPES.BUY
+      ? TRANSACTION_TYPES.TRANSFER_TO_INVESTMENT
+      : TRANSACTION_TYPES.WITHDRAW_FROM_INVESTMENT
+
+    return buildTransactionPayload({
+      date: formatDateForSheet(data.date),
+      type: transactionType,
+      category: data.assetName, // Use asset name as category
+      name: `${data.type === INVESTMENT_TYPES.BUY ? 'Mua' : 'Bán'} ${data.assetName}`,
+      amount: formatCurrencyForPayload(data.totalAmount.replace(/,/g, '')),
+      note: data.notes || '',
+      month: formatMonthSheet(data.date)
+    })
+  }
+
   // Single mode submit
   const handleSingleSubmit = async (e) => {
     if (e) e.preventDefault()
@@ -418,10 +461,17 @@ const InvestmentTransactionForm = ({
     showMessage('')
 
     try {
-      const payload = buildPayload(formData)
-      await createInvestmentTransaction(payload)
+      const investmentPayload = buildPayload(formData)
 
-      showMessage('Giao dịch đầu tư đã được lưu thành công!')
+      if (createLinkedTransaction) {
+        const mainTransactionPayload = buildLinkedMainTransactionPayload(formData)
+        await createInvestmentWithLinkedTransaction(investmentPayload, mainTransactionPayload)
+        showMessage('Giao dịch đầu tư và giao dịch liên kết đã được lưu thành công!')
+      } else {
+        await createInvestmentTransaction(investmentPayload)
+        showMessage('Giao dịch đầu tư đã được lưu thành công!')
+      }
+
       resetForm(mode === 'batch')
     } catch (error) {
       showMessage(error.message)
@@ -463,10 +513,17 @@ const InvestmentTransactionForm = ({
     showMessage('')
 
     try {
-      const payload = transactions.map(t => buildPayload(t))
-      await createBatchInvestmentTransactions(payload)
+      const investmentPayloads = transactions.map(t => buildPayload(t))
 
-      showMessage(`${transactions.length} giao dịch đầu tư đã được lưu thành công!`)
+      if (createLinkedTransaction) {
+        const mainTransactionPayloads = transactions.map(t => buildLinkedMainTransactionPayload(t))
+        await createBatchInvestmentWithLinkedTransactions(investmentPayloads, mainTransactionPayloads)
+        showMessage(`${transactions.length} giao dịch đầu tư và giao dịch liên kết đã được lưu thành công!`)
+      } else {
+        await createBatchInvestmentTransactions(investmentPayloads)
+        showMessage(`${transactions.length} giao dịch đầu tư đã được lưu thành công!`)
+      }
+
       setTransactions([])
       await clearSavedTransactions()
       setTimeout(() => onClose && onClose(), 1500)
@@ -517,6 +574,8 @@ const InvestmentTransactionForm = ({
           handleInputChange={handleInputChange}
           handleNumberInput={handleNumberInput}
           handleCurrencyInput={handleCurrencyInput}
+          createLinkedTransaction={createLinkedTransaction}
+          setCreateLinkedTransaction={setCreateLinkedTransaction}
         />
 
         <MessageDisplay />
@@ -644,6 +703,8 @@ const InvestmentTransactionForm = ({
           handleInputChange={handleInputChange}
           handleNumberInput={handleNumberInput}
           handleCurrencyInput={handleCurrencyInput}
+          createLinkedTransaction={createLinkedTransaction}
+          setCreateLinkedTransaction={setCreateLinkedTransaction}
         />
 
         <MessageDisplay />
