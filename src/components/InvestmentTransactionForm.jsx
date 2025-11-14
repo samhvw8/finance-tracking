@@ -1,5 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+/**
+ * Investment Transaction Form - Refactored Version
+ * Uses extracted hooks, utilities, and components for better maintainability
+ * Reduced from 780 lines to ~540 lines (31% reduction)
+ */
+
+import { useState, useEffect } from 'react'
 import { formatDateForSheet, formatCurrencyForPayload, formatMonthSheet } from '../utils/formatters'
+import { cleanCurrencyValue } from '../utils/currencyFormatter'
 import {
   createInvestmentTransaction,
   createBatchInvestmentTransactions,
@@ -8,54 +15,24 @@ import {
   createBatchInvestmentWithLinkedTransactions,
   buildTransactionPayload
 } from '../services/sheetdb'
-import { indexedDBService } from '../services/indexedDB'
 import { investmentAccountsManager } from '../services/investmentAccountsManager'
 import { INVESTMENT_TYPES, TRANSACTION_TYPES } from '../constants/categories'
+import { useInvestmentForm } from '../hooks/useInvestmentForm'
+import { useTransactionQueue } from '../hooks/useTransactionQueue'
 import DatePicker from './DatePicker'
+import TransactionTypeSelector from './investment/TransactionTypeSelector'
+import LinkedTransactionOption from './investment/LinkedTransactionOption'
 
-// Form fields component - extracted outside to prevent re-creation on every render
-const FormFields = ({ formData, setFormData, accounts, handleInputChange, handleNumberInput, handleCurrencyInput, createLinkedTransaction, setCreateLinkedTransaction }) => (
+/**
+ * Form Fields Component - Simplified with extracted components
+ */
+const FormFields = ({ formData, setFormData, accounts, handlers, createLinkedTransaction, setCreateLinkedTransaction }) => (
   <div className="space-y-4">
-    {/* Transaction Type - Prominent on mobile */}
-    <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl border border-blue-100">
-      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-        Loại Giao Dịch
-      </label>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setFormData(prev => ({ ...prev, type: INVESTMENT_TYPES.BUY }))}
-          className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-            formData.type === INVESTMENT_TYPES.BUY
-              ? 'bg-green-500 text-white shadow-lg scale-105'
-              : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'
-          }`}
-        >
-          <span className="flex items-center justify-center">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Mua
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setFormData(prev => ({ ...prev, type: INVESTMENT_TYPES.SELL }))}
-          className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-            formData.type === INVESTMENT_TYPES.SELL
-              ? 'bg-red-500 text-white shadow-lg scale-105'
-              : 'bg-white text-gray-600 border border-gray-200 hover:border-red-300'
-          }`}
-        >
-          <span className="flex items-center justify-center">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-            Bán
-          </span>
-        </button>
-      </div>
-    </div>
+    {/* Transaction Type Selector */}
+    <TransactionTypeSelector
+      selectedType={formData.type}
+      onTypeChange={(type) => setFormData(prev => ({ ...prev, type }))}
+    />
 
     {/* Date and Account */}
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -76,14 +53,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
         <select
           name="investmentAccount"
           value={formData.investmentAccount}
-          onChange={(e) => {
-            const selectedAccount = accounts.find(acc => acc.id === e.target.value)
-            setFormData(prev => ({
-              ...prev,
-              investmentAccount: e.target.value,
-              investmentAccountName: selectedAccount?.name || e.target.value
-            }))
-          }}
+          onChange={(e) => handlers.handleAccountChange(e.target.value)}
           className="w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-gray-700"
         >
           {accounts.length === 0 ? (
@@ -99,7 +69,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
       </div>
     </div>
 
-    {/* Asset Name - Full width for better typing */}
+    {/* Asset Name */}
     <div className="bg-white p-4 rounded-xl border-2 border-dashed border-blue-200">
       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
         Tên Tài Sản <span className="text-red-500">*</span>
@@ -108,7 +78,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
         type="text"
         name="assetName"
         value={formData.assetName}
-        onChange={handleInputChange}
+        onChange={handlers.handleInputChange}
         placeholder="VD: VNM, BTC, TSLA..."
         className="w-full px-4 py-3 text-lg font-semibold border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
         required
@@ -127,7 +97,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
           inputMode="decimal"
           name="quantity"
           value={formData.quantity}
-          onChange={handleNumberInput}
+          onChange={handlers.handleNumberInput}
           placeholder="0"
           className="w-full px-3 py-2.5 text-base font-semibold border-0 bg-blue-50 rounded-lg focus:ring-2 focus:ring-blue-500 text-blue-700"
           required
@@ -143,7 +113,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
           inputMode="numeric"
           name="pricePerUnit"
           value={formData.pricePerUnit}
-          onChange={handleCurrencyInput}
+          onChange={handlers.handleCurrencyInput}
           placeholder="0"
           className="w-full px-3 py-2.5 text-base font-semibold border-0 bg-green-50 rounded-lg focus:ring-2 focus:ring-green-500 text-green-700"
           required
@@ -151,7 +121,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
       </div>
     </div>
 
-    {/* Total Amount - Highlighted */}
+    {/* Total Amount */}
     <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-4 rounded-xl shadow-lg">
       <label className="block text-xs font-semibold text-purple-100 uppercase tracking-wide mb-2">
         💰 Tổng Tiền
@@ -171,7 +141,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
         inputMode="numeric"
         name="fees"
         value={formData.fees}
-        onChange={handleCurrencyInput}
+        onChange={handlers.handleCurrencyInput}
         placeholder="0"
         className="w-full px-3 py-2.5 text-sm border-0 bg-orange-50 rounded-lg focus:ring-2 focus:ring-orange-500 text-orange-700 font-medium"
       />
@@ -188,7 +158,7 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
           inputMode="numeric"
           name="realizedPL"
           value={formData.realizedPL}
-          onChange={handleCurrencyInput}
+          onChange={handlers.handleCurrencyInput}
           placeholder="0"
           className="w-full px-3 py-2.5 text-sm border-0 bg-yellow-50 rounded-lg focus:ring-2 focus:ring-yellow-500 text-yellow-700 font-medium"
         />
@@ -203,160 +173,81 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
       <textarea
         name="notes"
         value={formData.notes}
-        onChange={handleInputChange}
+        onChange={handlers.handleInputChange}
         rows="2"
         placeholder="Thêm ghi chú (tùy chọn)..."
         className="w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-gray-300 resize-none placeholder-gray-400"
       />
     </div>
 
-    {/* Linked Transaction Checkbox */}
-    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-xl border-2 border-green-200">
-      <label className="flex items-center cursor-pointer">
-        <input
-          type="checkbox"
-          checked={createLinkedTransaction}
-          onChange={(e) => setCreateLinkedTransaction(e.target.checked)}
-          className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-        />
-        <span className="ml-3 text-sm font-medium text-gray-700">
-          Tạo giao dịch liên kết trong "Giao Dịch" chính
-          <span className="block text-xs text-gray-500 mt-1">
-            {formData.type === INVESTMENT_TYPES.BUY ? 'Chuyển Tiền Vào Tài Khoản' : 'Rút Tiền Ra Tài Khoản'}
-          </span>
-        </span>
-      </label>
-    </div>
+    {/* Linked Transaction Option */}
+    <LinkedTransactionOption
+      transactionType={formData.type}
+      checked={createLinkedTransaction}
+      onChange={setCreateLinkedTransaction}
+    />
   </div>
 )
 
-const InvestmentTransactionForm = ({
-  mode = 'single', // 'single' or 'batch'
-  onClose
-}) => {
-  const [accounts, setAccounts] = useState([])
-  const [formData, setFormData] = useState({
-    date: new Date(),
-    investmentAccount: '',
-    investmentAccountName: '',
-    type: INVESTMENT_TYPES.BUY,
-    assetName: '',
-    quantity: '',
-    pricePerUnit: '',
-    totalAmount: '',
-    fees: '0',
-    realizedPL: '',
-    notes: ''
-  })
+/**
+ * Message Display Component
+ */
+const MessageDisplay = ({ message }) => {
+  if (!message) return null
 
+  const isSuccess = message.includes('thành công') || message.includes('thêm')
+
+  return (
+    <div
+      className={`p-3 rounded-lg text-sm animate-fadeIn ${
+        isSuccess
+          ? 'bg-green-100 text-green-700 border border-green-200'
+          : 'bg-red-100 text-red-700 border border-red-200'
+      }`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex items-center">
+        {isSuccess ? (
+          <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        )}
+        <span>{message}</span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Main Component
+ */
+const InvestmentTransactionForm = ({ mode = 'single', onClose }) => {
+  const [accounts, setAccounts] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
-  const [transactions, setTransactions] = useState([])
   const [createLinkedTransaction, setCreateLinkedTransaction] = useState(false)
 
-  const formRef = useRef(null)
+  // Use custom hooks for state management
+  const { formData, setFormData, handlers, validate, resetForm } = useInvestmentForm(accounts)
+  const queue = useTransactionQueue(mode === 'batch')
 
   // Load investment accounts
   useEffect(() => {
-    loadAccounts()
-  }, [])
-
-  const loadAccounts = () => {
     const loadedAccounts = investmentAccountsManager.getAccounts()
     setAccounts(loadedAccounts)
-    if (loadedAccounts.length > 0 && !formData.investmentAccount) {
-      setFormData(prev => ({
-        ...prev,
-        investmentAccount: loadedAccounts[0].id,
-        investmentAccountName: loadedAccounts[0].name
-      }))
-    }
-  }
+  }, [])
 
-  // Load saved transactions from IndexedDB on batch mode mount
+  // Show restored transactions message
   useEffect(() => {
-    if (mode === 'batch') {
-      loadSavedTransactions()
+    if (mode === 'batch' && queue.count > 0) {
+      showMessage(`Đã khôi phục ${queue.count} giao dịch đầu tư chưa lưu!`)
     }
-  }, [mode])
-
-  // Auto-save transactions to IndexedDB whenever transactions array changes (batch mode)
-  useEffect(() => {
-    if (mode === 'batch' && transactions.length >= 0) {
-      saveTransactionsToStorage()
-    }
-  }, [transactions, mode])
-
-  // Auto-calculate total amount when quantity or price per unit changes
-  useEffect(() => {
-    if (formData.quantity && formData.pricePerUnit) {
-      const quantity = parseFloat(formData.quantity)
-      // Remove dots from formatted price string
-      const priceString = formData.pricePerUnit.replace(/\./g, '')
-      const price = parseFloat(priceString)
-
-      console.log('Calculation debug:', {
-        quantity,
-        pricePerUnit: formData.pricePerUnit,
-        priceString,
-        price,
-        total: quantity * price
-      })
-
-      if (!isNaN(quantity) && !isNaN(price)) {
-        const total = quantity * price
-        // Use Intl.NumberFormat for more reliable formatting
-        const formatted = new Intl.NumberFormat('vi-VN', {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(total)
-
-        setFormData(prev => ({
-          ...prev,
-          totalAmount: formatted
-        }))
-      }
-    }
-  }, [formData.quantity, formData.pricePerUnit])
-
-  const loadSavedTransactions = async () => {
-    try {
-      const savedTransactions = await indexedDBService.getQueuedInvestmentTransactions()
-      if (savedTransactions && savedTransactions.length > 0) {
-        const restoredTransactions = savedTransactions.map(t => ({
-          ...t,
-          date: new Date(t.date)
-        }))
-        setTransactions(restoredTransactions)
-        showMessage(`Đã khôi phục ${savedTransactions.length} giao dịch đầu tư chưa lưu!`)
-      }
-    } catch (error) {
-      console.error('Error loading saved transactions:', error)
-    }
-  }
-
-  const saveTransactionsToStorage = async () => {
-    try {
-      await indexedDBService.clearInvestmentQueue()
-
-      for (const transaction of transactions) {
-        await indexedDBService.addToInvestmentQueue({
-          ...transaction,
-          date: transaction.date.toISOString()
-        })
-      }
-    } catch (error) {
-      console.error('Error saving transactions to storage:', error)
-    }
-  }
-
-  const clearSavedTransactions = async () => {
-    try {
-      await indexedDBService.clearInvestmentQueue()
-    } catch (error) {
-      console.error('Error clearing saved transactions:', error)
-    }
-  }
+  }, [mode, queue.count])
 
   const showMessage = (msg, timeout = 5000) => {
     setMessage(msg)
@@ -365,113 +256,30 @@ const InvestmentTransactionForm = ({
     }
   }
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
+  // Build payload for investment transaction
+  const buildInvestmentPayload = (data) => {
+    const payloadData = typeof data.getPayloadData === 'function'
+      ? data.getPayloadData()
+      : {
+          ...data,
+          pricePerUnit: cleanCurrencyValue(data.pricePerUnit),
+          totalAmount: cleanCurrencyValue(data.totalAmount),
+          fees: cleanCurrencyValue(data.fees) || '0',
+          realizedPL: cleanCurrencyValue(data.realizedPL) || ''
+        }
 
-  const handleNumberInput = (e) => {
-    const { name, value } = e.target
-    const numericValue = value.replace(/[^\d.]/g, '')
-    setFormData(prev => ({
-      ...prev,
-      [name]: numericValue
-    }))
-  }
-
-  const handleCurrencyInput = (e) => {
-    const { name, value } = e.target
-    const numericValue = value.replace(/[^\d]/g, '')
-    if (numericValue) {
-      const number = parseFloat(numericValue)
-      const formatted = new Intl.NumberFormat('vi-VN', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).format(number)
-
-      console.log('Currency input debug:', {
-        name,
-        value,
-        numericValue,
-        number,
-        formatted
-      })
-
-      setFormData(prev => ({
-        ...prev,
-        [name]: formatted
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: ''
-      }))
-    }
-  }
-
-  const validateForm = () => {
-    if (!formData.assetName.trim()) {
-      return 'Vui lòng nhập tên tài sản'
-    }
-    if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
-      return 'Vui lòng nhập số lượng hợp lệ'
-    }
-    if (!formData.pricePerUnit || parseFloat(formData.pricePerUnit.replace(/\./g, '')) <= 0) {
-      return 'Vui lòng nhập giá hợp lệ'
-    }
-    return null
-  }
-
-  const resetForm = (keepDateAndType = false) => {
-    if (keepDateAndType) {
-      setFormData(prev => ({
-        ...prev,
-        assetName: '',
-        quantity: '',
-        pricePerUnit: '',
-        totalAmount: '',
-        fees: '0',
-        realizedPL: '',
-        notes: ''
-      }))
-    } else {
-      const defaultAccount = accounts.length > 0 ? accounts[0] : { id: 'INV001', name: 'Cổ phiếu Việt Nam' }
-      setFormData({
-        date: new Date(),
-        investmentAccount: defaultAccount.id,
-        investmentAccountName: defaultAccount.name,
-        type: INVESTMENT_TYPES.BUY,
-        assetName: '',
-        quantity: '',
-        pricePerUnit: '',
-        totalAmount: '',
-        fees: '0',
-        realizedPL: '',
-        notes: ''
-      })
-    }
-  }
-
-  const buildPayload = (data) => {
     return buildInvestmentTransactionPayload({
       date: formatDateForSheet(data.date),
       investmentAccount: data.investmentAccount,
       type: data.type,
       assetName: data.assetName,
       quantity: data.quantity,
-      pricePerUnit: data.pricePerUnit.replace(/\./g, ''),
-      totalAmount: data.totalAmount.replace(/\./g, ''),
-      fees: data.fees.replace(/\./g, '') || '0',
-      realizedPL: data.realizedPL.replace(/\./g, '') || '',
-      notes: data.notes
+      ...payloadData
     })
   }
 
-  const buildLinkedMainTransactionPayload = (data) => {
-    // Determine transaction type based on investment type
+  // Build payload for linked main transaction
+  const buildLinkedPayload = (data) => {
     const transactionType = data.type === INVESTMENT_TYPES.BUY
       ? TRANSACTION_TYPES.TRANSFER_TO_INVESTMENT
       : TRANSACTION_TYPES.WITHDRAW_FROM_INVESTMENT
@@ -481,17 +289,17 @@ const InvestmentTransactionForm = ({
       type: transactionType,
       category: data.investmentAccountName,
       name: `${data.type === INVESTMENT_TYPES.BUY ? 'Mua' : 'Bán'} ${data.assetName}`,
-      amount: formatCurrencyForPayload(data.totalAmount.replace(/\./g, '')),
+      amount: formatCurrencyForPayload(cleanCurrencyValue(data.totalAmount)),
       note: data.notes || '',
       month: formatMonthSheet(data.date)
     })
   }
 
-  // Single mode submit
+  // Single transaction submission
   const handleSingleSubmit = async (e) => {
     if (e) e.preventDefault()
 
-    const validationError = validateForm()
+    const validationError = validate()
     if (validationError) {
       showMessage(validationError)
       return
@@ -501,14 +309,10 @@ const InvestmentTransactionForm = ({
     showMessage('')
 
     try {
-      console.log('Form data on submit:', formData)
-      console.log('Investment account name:', formData.investmentAccountName)
-      const investmentPayload = buildPayload(formData)
-      console.log('Submitting investment payload:', investmentPayload)
+      const investmentPayload = buildInvestmentPayload(formData)
 
       if (createLinkedTransaction) {
-        const mainTransactionPayload = buildLinkedMainTransactionPayload(formData)
-        console.log('Linked transaction payload:', mainTransactionPayload)
+        const mainTransactionPayload = buildLinkedPayload(formData)
         await createInvestmentWithLinkedTransaction(investmentPayload, mainTransactionPayload)
         showMessage('Giao dịch đầu tư và giao dịch liên kết đã được lưu thành công!')
       } else {
@@ -524,31 +328,22 @@ const InvestmentTransactionForm = ({
     }
   }
 
-  // Batch mode - add to queue
+  // Add to batch queue
   const addToQueue = () => {
-    const validationError = validateForm()
+    const validationError = validate()
     if (validationError) {
       showMessage(validationError)
       return
     }
 
-    const newTransaction = {
-      ...formData,
-      id: Date.now()
-    }
-
-    setTransactions([...transactions, newTransaction])
+    queue.addToQueue(formData)
     resetForm(true)
     showMessage('Đã thêm vào danh sách!', 2000)
   }
 
-  const removeTransaction = (id) => {
-    setTransactions(transactions.filter(t => t.id !== id))
-  }
-
-  // Batch mode submit
+  // Submit batch transactions
   const handleBatchSubmit = async () => {
-    if (transactions.length === 0) {
+    if (!queue.hasTransactions) {
       showMessage('Không có giao dịch nào để lưu!')
       return
     }
@@ -557,19 +352,18 @@ const InvestmentTransactionForm = ({
     showMessage('')
 
     try {
-      const investmentPayloads = transactions.map(t => buildPayload(t))
+      const investmentPayloads = queue.transactions.map(t => buildInvestmentPayload(t))
 
       if (createLinkedTransaction) {
-        const mainTransactionPayloads = transactions.map(t => buildLinkedMainTransactionPayload(t))
+        const mainTransactionPayloads = queue.transactions.map(t => buildLinkedPayload(t))
         await createBatchInvestmentWithLinkedTransactions(investmentPayloads, mainTransactionPayloads)
-        showMessage(`${transactions.length} giao dịch đầu tư và giao dịch liên kết đã được lưu thành công!`)
+        showMessage(`${queue.count} giao dịch đầu tư và giao dịch liên kết đã được lưu thành công!`)
       } else {
         await createBatchInvestmentTransactions(investmentPayloads)
-        showMessage(`${transactions.length} giao dịch đầu tư đã được lưu thành công!`)
+        showMessage(`${queue.count} giao dịch đầu tư đã được lưu thành công!`)
       }
 
-      setTransactions([])
-      await clearSavedTransactions()
+      await queue.clearQueue()
       setTimeout(() => onClose && onClose(), 1500)
     } catch (error) {
       showMessage(error.message)
@@ -578,36 +372,10 @@ const InvestmentTransactionForm = ({
     }
   }
 
-  const MessageDisplay = () => message && (
-    <div
-      className={`p-3 rounded-lg text-sm animate-fadeIn ${
-        message.includes('thành công') || message.includes('thêm')
-          ? 'bg-green-100 text-green-700 border border-green-200'
-          : 'bg-red-100 text-red-700 border border-red-200'
-      }`}
-      role="status"
-      aria-live="polite"
-    >
-      <div className="flex items-center">
-        {message.includes('thành công') || message.includes('thêm') ? (
-          <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-        )}
-        <span>{message}</span>
-      </div>
-    </div>
-  )
-
   // Single mode render
   if (mode === 'single') {
     return (
       <form
-        ref={formRef}
         onSubmit={handleSingleSubmit}
         className="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 sm:p-6 animate-slideIn pb-24 sm:pb-6"
       >
@@ -615,14 +383,12 @@ const InvestmentTransactionForm = ({
           formData={formData}
           setFormData={setFormData}
           accounts={accounts}
-          handleInputChange={handleInputChange}
-          handleNumberInput={handleNumberInput}
-          handleCurrencyInput={handleCurrencyInput}
+          handlers={handlers}
           createLinkedTransaction={createLinkedTransaction}
           setCreateLinkedTransaction={setCreateLinkedTransaction}
         />
 
-        <MessageDisplay />
+        <MessageDisplay message={message} />
 
         {/* Desktop Save Button */}
         <button
@@ -683,15 +449,14 @@ const InvestmentTransactionForm = ({
         <div className="mb-4">
           <div className="flex justify-between items-center mb-3">
             <div className="text-sm text-gray-600">
-              Danh sách chờ ({transactions.length})
+              Danh sách chờ ({queue.count})
             </div>
-            {transactions.length > 0 && (
+            {queue.hasTransactions && (
               <div className="flex items-center space-x-2">
                 <span className="text-xs text-green-600">📱 Tự động lưu</span>
                 <button
                   onClick={() => {
-                    setTransactions([])
-                    clearSavedTransactions()
+                    queue.clearQueue()
                     showMessage('Đã xóa tất cả!', 2000)
                   }}
                   className="text-xs text-red-500 hover:text-red-700"
@@ -702,17 +467,17 @@ const InvestmentTransactionForm = ({
             )}
           </div>
 
-          {transactions.length > 0 ? (
+          {queue.hasTransactions ? (
             <>
               <div className="space-y-2 max-h-32 overflow-y-auto mb-4">
-                {transactions.map(t => (
+                {queue.transactions.map(t => (
                   <div key={t.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
                     <div className="flex-1">
                       <div className="font-medium text-sm">{t.assetName} ({t.type})</div>
                       <div className="text-xs text-gray-500">{t.quantity} × {t.pricePerUnit}</div>
                     </div>
                     <button
-                      onClick={() => removeTransaction(t.id)}
+                      onClick={() => queue.removeFromQueue(t.id)}
                       className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg p-1 ml-2 transition-all duration-200"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -727,7 +492,7 @@ const InvestmentTransactionForm = ({
                 disabled={isSubmitting}
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium transform hover:-translate-y-0.5 hover:shadow-lg"
               >
-                {isSubmitting ? `Đang lưu...` : `Lưu tất cả (${transactions.length})`}
+                {isSubmitting ? `Đang lưu...` : `Lưu tất cả (${queue.count})`}
               </button>
             </>
           ) : (
@@ -744,14 +509,12 @@ const InvestmentTransactionForm = ({
           formData={formData}
           setFormData={setFormData}
           accounts={accounts}
-          handleInputChange={handleInputChange}
-          handleNumberInput={handleNumberInput}
-          handleCurrencyInput={handleCurrencyInput}
+          handlers={handlers}
           createLinkedTransaction={createLinkedTransaction}
           setCreateLinkedTransaction={setCreateLinkedTransaction}
         />
 
-        <MessageDisplay />
+        <MessageDisplay message={message} />
 
         <div className="space-y-2">
           <button
