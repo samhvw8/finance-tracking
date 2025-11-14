@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formatDateForInput } from '../utils/formatters'
 
-const DatePicker = ({ id, value, onChange, allowFuture = false, className = '', ...props }) => {
+const DatePicker = ({ id, label, value, onChange, allowFuture = false, className = '', required = false, ...props }) => {
   const [inputValue, setInputValue] = useState(formatDateForInput(value))
 
   // Update input value when parent value changes
@@ -36,16 +36,24 @@ const DatePicker = ({ id, value, onChange, allowFuture = false, className = '', 
   const maxDate = allowFuture ? undefined : formatDateForInput(today)
 
   return (
-    <input
-      id={id}
-      type="date"
-      value={inputValue}
-      onChange={handleInputChange}
-      onBlur={handleBlur}
-      max={maxDate}
-      className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300 ${className}`}
-      {...props}
-    />
+    <div>
+      {label && (
+        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <input
+        id={id}
+        type="date"
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleBlur}
+        max={maxDate}
+        required={required}
+        className={`w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-gray-700 ${className}`}
+        {...props}
+      />
+    </div>
   )
 }
 
