@@ -24,22 +24,61 @@ export const parseCurrency = (currencyString) => {
 
 export const formatDateForDisplay = (date) => {
   const dayNamesVi = ['Chủ', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy']
-  
-  const dayIndex = date.getDay()
+
+  // Ensure we have a valid Date object
+  let dateObj = date
+  if (!(date instanceof Date)) {
+    dateObj = new Date(date)
+  }
+  if (isNaN(dateObj.getTime())) {
+    dateObj = new Date() // Fallback to today
+  }
+
+  const dayIndex = dateObj.getDay()
   const dayNameVi = dayNamesVi[dayIndex]
-  const formattedDate = format(date, 'dd/MM/yyyy')
-  
+  const formattedDate = format(dateObj, 'dd/MM/yyyy')
+
   return `${dayNameVi}-${formattedDate}`
 }
 
 export const formatDateForSheet = (date) => {
-  return format(date, 'MM/dd/yyyy')
+  // Ensure we have a valid Date object
+  let dateObj = date
+  if (!(date instanceof Date)) {
+    dateObj = new Date(date)
+  }
+  if (isNaN(dateObj.getTime())) {
+    dateObj = new Date() // Fallback to today
+  }
+
+  return format(dateObj, 'MM/dd/yyyy')
 }
 
 export const formatDateForInput = (date) => {
-  return format(date, 'yyyy-MM-dd')
+  // Ensure we have a valid Date object
+  let dateObj = date
+
+  if (!(date instanceof Date)) {
+    dateObj = new Date(date)
+  }
+
+  // Check if the date is valid
+  if (isNaN(dateObj.getTime())) {
+    dateObj = new Date() // Fallback to today
+  }
+
+  return format(dateObj, 'yyyy-MM-dd')
 }
 
 export const formatMonthSheet = (date) => {
-  return format(date, 'MM/yyyy')
+  // Ensure we have a valid Date object
+  let dateObj = date
+  if (!(date instanceof Date)) {
+    dateObj = new Date(date)
+  }
+  if (isNaN(dateObj.getTime())) {
+    dateObj = new Date() // Fallback to today
+  }
+
+  return format(dateObj, 'MM/yyyy')
 }

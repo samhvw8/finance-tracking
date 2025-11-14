@@ -2,7 +2,7 @@ import { indexedDBService } from './indexedDB'
 
 const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/otpxy27h47ofu'
 const SHEET_NAME = 'Giao Dịch'
-const INVESTMENT_SHEET_NAME = 'Giao Dich Investment'
+const INVESTMENT_SHEET_NAME = 'Giao Dịch Investment'
 const SETUP_SHEET_NAME = 'Setup Finanace' // Note: typo in sheet name
 const INVESTMENT_ACCOUNT_SHEET_NAME = 'Investment Account'
 
