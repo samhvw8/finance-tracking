@@ -76,7 +76,14 @@ const FormFields = ({ formData, setFormData, accounts, handleInputChange, handle
         <select
           name="investmentAccount"
           value={formData.investmentAccount}
-          onChange={handleInputChange}
+          onChange={(e) => {
+            const selectedAccount = accounts.find(acc => acc.id === e.target.value)
+            setFormData(prev => ({
+              ...prev,
+              investmentAccount: e.target.value,
+              investmentAccountName: selectedAccount?.name || e.target.value
+            }))
+          }}
           className="w-full px-3 py-2.5 text-sm border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-gray-700"
         >
           {accounts.length === 0 ? (
@@ -231,6 +238,7 @@ const InvestmentTransactionForm = ({
   const [formData, setFormData] = useState({
     date: new Date(),
     investmentAccount: '',
+    investmentAccountName: '',
     type: INVESTMENT_TYPES.BUY,
     assetName: '',
     quantity: '',
@@ -259,7 +267,8 @@ const InvestmentTransactionForm = ({
     if (loadedAccounts.length > 0 && !formData.investmentAccount) {
       setFormData(prev => ({
         ...prev,
-        investmentAccount: loadedAccounts[0].id
+        investmentAccount: loadedAccounts[0].id,
+        investmentAccountName: loadedAccounts[0].name
       }))
     }
   }
@@ -282,12 +291,29 @@ const InvestmentTransactionForm = ({
   useEffect(() => {
     if (formData.quantity && formData.pricePerUnit) {
       const quantity = parseFloat(formData.quantity)
-      const price = parseFloat(formData.pricePerUnit.replace(/,/g, ''))
+      // Remove dots from formatted price string
+      const priceString = formData.pricePerUnit.replace(/\./g, '')
+      const price = parseFloat(priceString)
+
+      console.log('Calculation debug:', {
+        quantity,
+        pricePerUnit: formData.pricePerUnit,
+        priceString,
+        price,
+        total: quantity * price
+      })
+
       if (!isNaN(quantity) && !isNaN(price)) {
         const total = quantity * price
+        // Use Intl.NumberFormat for more reliable formatting
+        const formatted = new Intl.NumberFormat('vi-VN', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(total)
+
         setFormData(prev => ({
           ...prev,
-          totalAmount: total.toLocaleString('vi-VN')
+          totalAmount: formatted
         }))
       }
     }
@@ -360,7 +386,20 @@ const InvestmentTransactionForm = ({
     const { name, value } = e.target
     const numericValue = value.replace(/[^\d]/g, '')
     if (numericValue) {
-      const formatted = parseFloat(numericValue).toLocaleString('vi-VN')
+      const number = parseFloat(numericValue)
+      const formatted = new Intl.NumberFormat('vi-VN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(number)
+
+      console.log('Currency input debug:', {
+        name,
+        value,
+        numericValue,
+        number,
+        formatted
+      })
+
       setFormData(prev => ({
         ...prev,
         [name]: formatted
@@ -380,7 +419,7 @@ const InvestmentTransactionForm = ({
     if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
       return 'Vui lòng nhập số lượng hợp lệ'
     }
-    if (!formData.pricePerUnit || parseFloat(formData.pricePerUnit.replace(/,/g, '')) <= 0) {
+    if (!formData.pricePerUnit || parseFloat(formData.pricePerUnit.replace(/\./g, '')) <= 0) {
       return 'Vui lòng nhập giá hợp lệ'
     }
     return null
@@ -399,11 +438,12 @@ const InvestmentTransactionForm = ({
         notes: ''
       }))
     } else {
+      const defaultAccount = accounts.length > 0 ? accounts[0] : { id: 'INV001', name: 'Cổ phiếu Việt Nam' }
       setFormData({
         date: new Date(),
-        investmentAccount: 'INV001',
+        investmentAccount: defaultAccount.id,
+        investmentAccountName: defaultAccount.name,
         type: INVESTMENT_TYPES.BUY,
-        assetType: ASSET_TYPES.STOCKS,
         assetName: '',
         quantity: '',
         pricePerUnit: '',
@@ -422,10 +462,10 @@ const InvestmentTransactionForm = ({
       type: data.type,
       assetName: data.assetName,
       quantity: data.quantity,
-      pricePerUnit: data.pricePerUnit.replace(/,/g, ''),
-      totalAmount: data.totalAmount.replace(/,/g, ''),
-      fees: data.fees.replace(/,/g, '') || '0',
-      realizedPL: data.realizedPL.replace(/,/g, '') || '',
+      pricePerUnit: data.pricePerUnit.replace(/\./g, ''),
+      totalAmount: data.totalAmount.replace(/\./g, ''),
+      fees: data.fees.replace(/\./g, '') || '0',
+      realizedPL: data.realizedPL.replace(/\./g, '') || '',
       notes: data.notes
     })
   }
@@ -439,9 +479,9 @@ const InvestmentTransactionForm = ({
     return buildTransactionPayload({
       date: formatDateForSheet(data.date),
       type: transactionType,
-      category: data.assetName, // Use asset name as category
+      category: data.investmentAccountName,
       name: `${data.type === INVESTMENT_TYPES.BUY ? 'Mua' : 'Bán'} ${data.assetName}`,
-      amount: formatCurrencyForPayload(data.totalAmount.replace(/,/g, '')),
+      amount: formatCurrencyForPayload(data.totalAmount.replace(/\./g, '')),
       note: data.notes || '',
       month: formatMonthSheet(data.date)
     })
@@ -461,10 +501,14 @@ const InvestmentTransactionForm = ({
     showMessage('')
 
     try {
+      console.log('Form data on submit:', formData)
+      console.log('Investment account name:', formData.investmentAccountName)
       const investmentPayload = buildPayload(formData)
+      console.log('Submitting investment payload:', investmentPayload)
 
       if (createLinkedTransaction) {
         const mainTransactionPayload = buildLinkedMainTransactionPayload(formData)
+        console.log('Linked transaction payload:', mainTransactionPayload)
         await createInvestmentWithLinkedTransaction(investmentPayload, mainTransactionPayload)
         showMessage('Giao dịch đầu tư và giao dịch liên kết đã được lưu thành công!')
       } else {
