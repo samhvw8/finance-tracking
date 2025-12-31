@@ -44,7 +44,12 @@ export const useTransactionForm = (initialData = null, onFormDataChange = null) 
   const validateForm = () => {
     if (!formData.type) return 'Vui lòng chọn loại giao dịch'
     if (formData.amount <= 0) return 'Vui lòng nhập số tiền hợp lệ'
-    if (formData.date > new Date()) return 'Ngày không thể trong tương lai'
+
+    // Allow future dates for Income and Expense, block for transfer types
+    const allowFutureDateTypes = [TRANSACTION_TYPES.INCOME, TRANSACTION_TYPES.EXPENSE]
+    if (!allowFutureDateTypes.includes(formData.type) && formData.date > new Date()) {
+      return 'Ngày không thể trong tương lai'
+    }
     return null
   }
   
