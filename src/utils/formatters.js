@@ -80,5 +80,5 @@ export const formatMonthSheet = (date) => {
     dateObj = new Date() // Fallback to today
   }
 
-  return format(dateObj, 'MM/yyyy')
+  return format(dateObj, 'yyyy/MM')
 }

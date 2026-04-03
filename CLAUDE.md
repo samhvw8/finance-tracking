@@ -198,7 +198,7 @@ When creating investment transactions, users can optionally create a linked tran
 - Node version: 18 or higher
 - Project name: `finance-tracking`
 - Primary domain: `finance-tracking-bo5.pages.dev`
-- Custom domain: `finance-tracking.samtrang.com` (configured via DNS CNAME)
+- Custom domain: `finance-tracking.3cxo.work` (configured via DNS CNAME)
 - Required environment variables:
   - `CLOUDFLARE_API_TOKEN` (for deployment)
   - `VITE_SHEETDB_TOKEN` (optional, can be set via UI)
