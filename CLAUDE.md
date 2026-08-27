@@ -1,35 +1,43 @@
 # Project Overview
 
-This is a comprehensive finance tracking web application that allows users to manage both regular transactions and detailed investment transactions via Google Sheets and the SheetDB API. The app features:
+This is a comprehensive finance tracking web application that allows users to manage both regular transactions and detailed investment transactions in Google Sheets. Data access goes through a Cloudflare Worker that talks to the Google Sheets API with a service account (SheetDB is no longer used). The app features:
 
 - **Main Transactions**: Income, expenses, and account transfers with single and batch modes
 - **Investment Tracking**: Detailed buy/sell transactions with asset tracking, fees, and P&L
 - **Linked Transactions**: Automatically create cash flow transactions when recording investments
 - **Dynamic Categories**: Categories loaded from Google Sheets for flexibility
 - **Offline-First**: IndexedDB caching for offline use and smart recovery
-- **Secure Token Management**: API token configurable via UI or environment
+- **Receipt Photos**: Capture/upload an image per transaction → stored in Cloudflare R2 → shown in-cell via `=IMAGE()`
+- **Shared Password Gate**: A single shared password protects the Worker API
 - **Mobile-Optimized**: Responsive design for both mobile and desktop devices
-- **Cloudflare Pages Deployment**: Fast, globally distributed hosting
+- **Cloudflare Workers Deployment**: One Worker serves the SPA + API, globally distributed
 
 # API Integration
 
-## SheetDB Endpoint
-- Base URL: `https://sheetdb.io/api/v1/otpxy27h47ofu`
-- Method: POST for creating new transactions (single or batch)
-- Method: GET for fetching categories from setup sheet
-- Sheet name: "Giao Dịch" (for transactions)
-- Setup sheet: "Setup Finanace" (for dynamic categories)
-- Authentication: Bearer token (configurable via UI or environment variable)
+## Backend: Cloudflare Worker + Google Sheets API
+The frontend (SPA) calls a same-origin Cloudflare Worker (`src/worker.js`) at `/api/*`. The Worker authenticates to the Google Sheets API with a **service account** (`finance-sheets-writer@family-apps-samhv.iam.gserviceaccount.com`), JWT signed via Web Crypto (`src/google-auth.mjs`). The sheet is owned by the user and shared with that service account. SheetDB is no longer used.
+
+- Spreadsheet: `SHEET_ID` Worker var (the "Master <3" sheet — all tabs in one file)
+- `GET  /api/rows?sheet=<tab>&limit=<n>` → array of row-objects keyed by header
+- `POST /api/rows` `{ data: [rowObjects], sheet }` → appends rows (maps keys→columns; `valueInputOption=USER_ENTERED` so formulas evaluate)
+- `POST /api/upload-image` `{ dataUrl }` → uploads to R2, returns `{ url }`
+- `GET  /img/<key>` → serves the R2 image publicly (so `=IMAGE()` can render it)
+- `POST /api/login` → validates the password
+- Auth: every `/api/*` call carries the shared password as `Authorization: Bearer <password>`
+- The service-account key (`GOOGLE_SERVICE_ACCOUNT`) and `APP_PASSWORD` are Worker **secrets** — never in the client
 
 ## Transaction Data Structure
 
-The Google Sheet "Giao Dịch" has the following columns:
+The Google Sheet "Giao Dịch" has the following columns (A–I):
 - **Date**: Transaction date (format: MM/dd/yyyy for sheet, display as "Day-dd/MM/yyyy")
 - **Type**: Transaction type (Thu Nhập | Chi Tiêu | Chuyển Tiền Vào Tài Khoản | Rút Tiền Ra Tài Khoản)
 - **Category**: Category based on type (loaded dynamically from Setup sheet)
 - **Tên**: Transaction name/description
 - **Số Tiền**: Amount (numbers without currency symbol for sheet, display with VND)
 - **Note**: Optional notes
+- **Month**: `=TEXT(...)` formula written by the app (yyyy/MM)
+- **Chi Tiêu Category**: `=IFERROR(INDEX(...))` formula (expense rows only)
+- **Ảnh**: `=HYPERLINK("<r2-url>", IMAGE("<r2-url>"))` — clickable receipt photo (optional)
 
 ## Category Setup Structure
 
@@ -61,11 +69,13 @@ The Google Sheet "Giao Dich Investment" has the following columns for detailed i
 
 ## API Request Example
 ```javascript
-fetch('https://sheetdb.io/api/v1/otpxy27h47ofu', {
+// Same-origin call to our Worker (not SheetDB). Password rides in the header.
+fetch('/api/rows', {
     method: 'POST',
     headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${password}`
     },
     body: JSON.stringify({
         data: [{
@@ -73,8 +83,9 @@ fetch('https://sheetdb.io/api/v1/otpxy27h47ofu', {
             'Type': 'Chi Tiêu',
             'Category': 'Mua Sắm',
             'Tên': 'Tiền Ảnh',
-            'Số Tiền': '2,127,000 ₫',
-            'Note': ''
+            'Số Tiền': '2127000',
+            'Note': '',
+            'Ảnh': '=HYPERLINK("https://.../uuid.jpg", IMAGE("https://.../uuid.jpg"))'
         }],
         sheet: 'Giao Dịch'
     })
@@ -87,34 +98,41 @@ fetch('https://sheetdb.io/api/v1/otpxy27h47ofu', {
 # Install dependencies
 npm install
 
-# Start development server
+# Start the frontend dev server (Vite, HMR) — proxies /api to the local Worker
 npm run dev
+
+# In a second terminal: run the Worker locally (reads .dev.vars)
+npm run dev:api
 
 # Build for production
 npm run build
 
-# Preview production build
-npm run preview
-
-# Deploy to Cloudflare Pages
+# Deploy to Cloudflare Workers (build + wrangler deploy)
 npm run deploy
 ```
+
+> Requires Node 22 (wrangler v4). `.mise.toml` pins it. Local secrets live in
+> `.dev.vars` (gitignored); the service-account key is `.secrets/sa-key.json`.
 
 # Project Structure
 
 ```
 finance-tracking/
 ├── src/
+│   ├── worker.js             # Cloudflare Worker: serves SPA + /api/* + /img/* (R2)
+│   ├── google-auth.mjs       # Service-account JWT signing (Web Crypto), isomorphic
+│   ├── sheets.mjs            # Google Sheets read/append (by column name, USER_ENTERED)
 │   ├── components/           # Reusable UI components
 │   │   ├── UnifiedTransactionForm.jsx    # Unified form for single/batch transactions
-│   │   ├── TransactionFormFields.jsx     # Shared form fields component
+│   │   ├── TransactionFormFields.jsx     # Shared form fields (includes ImageCapture)
+│   │   ├── ImageCapture.jsx              # Camera/file capture + client-side downscale
 │   │   ├── InvestmentTransactionForm.jsx # Investment transaction form (Buy/Sell)
-│   │   ├── TokenSettings.jsx             # API token and category refresh UI
+│   │   ├── TokenSettings.jsx             # Password + category/account refresh UI
 │   │   ├── DatePicker.jsx                # Date input component
 │   │   ├── AmountInput.jsx               # Currency input with formatting
 │   │   └── Sidebar.jsx                   # Navigation sidebar
 │   ├── services/             # API integration and data management
-│   │   ├── sheetdb.js                    # SheetDB API client with linked transaction support
+│   │   ├── sheetdb.js                    # Worker API client (filename kept; no longer SheetDB)
 │   │   ├── indexedDB.js                  # Browser storage service
 │   │   ├── categoriesManager.js          # Dynamic category management
 │   │   └── investmentAccountsManager.js  # Investment accounts management
@@ -125,7 +143,11 @@ finance-tracking/
 │   ├── constants/            # App constants
 │   │   └── categories.js                 # Transaction type constants
 │   └── App.jsx               # Main application component
-├── public/                   # Static assets
+├── scripts/                  # SA utilities (verify-access, add-image-column, …)
+├── public/                   # Static assets (built into dist/)
+├── wrangler.jsonc            # Worker config (assets→dist, vars, r2_buckets, routes)
+├── .dev.vars                 # Local Worker secrets (gitignored)
+├── .secrets/sa-key.json      # Service-account key (gitignored)
 └── package.json              # Project dependencies
 ```
 
@@ -180,11 +202,17 @@ When creating investment transactions, users can optionally create a linked tran
 - **Checkbox Control**: Feature can be enabled/disabled via checkbox in investment form
 - **Batch Support**: Works in both single transaction and batch modes
 
-## Token Security
-- **UI Configuration**: Token can be set via settings interface (masked input)
-- **IndexedDB Storage**: Securely stored in browser's IndexedDB
-- **Environment Fallback**: Falls back to `VITE_SHEETDB_TOKEN` environment variable
-- **Dynamic Loading**: All API calls use dynamically retrieved token
+## Receipt Photos (Images)
+- **Capture**: `ImageCapture.jsx` — file input with `capture="environment"` (camera on mobile); downscaled client-side (canvas, max 1024px, JPEG 0.7) to a data URL.
+- **Upload**: on submit the data URL is POSTed to `/api/upload-image`; the Worker stores it in R2 (`finance-tracking-images`) at `receipts/<date>/<uuid>.<ext>` and returns a public URL.
+- **Display**: the app writes `=HYPERLINK("<url>", IMAGE("<url>"))` into the "Ảnh" column — a clickable thumbnail that opens the full image in a new tab. (`=IMAGE()` needs a public, non-Drive, direct-image URL — hence R2 + the public `/img/` route.)
+- **URL security**: `/img/<key>` is public (Google's servers must fetch it for `=IMAGE()`). Protection is the **unguessable UUID** key (a capability URL): not enumerable/listable, only ever appears in your private sheet. Expiring/auth tokens are incompatible with `=IMAGE()` (the sheet stores a permanent URL). To revoke an image, delete the R2 object.
+- **Scope**: currently on the main transaction form; the investment form can adopt the same pattern.
+
+## Password & Secrets
+- **Shared Password Gate**: A single password protects the Worker API. Set it in the UI (sidebar settings → "Mật Khẩu", masked); stored in IndexedDB and sent as `Authorization: Bearer <password>` on every `/api/*` call. Falls back to `VITE_APP_PASSWORD` if set.
+- **Server-side secrets**: `GOOGLE_SERVICE_ACCOUNT` (the SA key) and `APP_PASSWORD` live only as Cloudflare Worker secrets — never shipped to the browser.
+- **Rotate the password**: `npx wrangler secret put APP_PASSWORD` (then re-enter it in the UI).
 
 ## Responsive Design
 - **Mobile-first**: Optimized for mobile devices
@@ -192,27 +220,26 @@ When creating investment transactions, users can optionally create a linked tran
 - **Touch-friendly**: Large touch targets and optimized input controls
 - **Adaptive UI**: Different layouts for mobile and desktop
 
-## Cloudflare Pages Deployment
-- Build output directory: `dist`
-- Framework preset: React/Vite
-- Node version: 18 or higher
-- Project name: `finance-tracking`
-- Primary domain: `finance-tracking-bo5.pages.dev`
-- Custom domain: `finance-tracking.3cxo.work` (configured via DNS CNAME)
-- Required environment variables:
-  - `CLOUDFLARE_API_TOKEN` (for deployment)
-  - `VITE_SHEETDB_TOKEN` (optional, can be set via UI)
+## Cloudflare Workers Deployment
+- One Worker (`finance-tracking`) serves the built SPA (`dist/` via the `ASSETS` binding, SPA fallback) plus the `/api/*` and `/img/*` routes.
+- Node version: 22+ (wrangler v4; pinned in `.mise.toml`)
+- Custom domain: `finance-tracking.3cxo.work` (`custom_domain` route in `wrangler.jsonc`)
+- Fallback URL: `finance-tracking.ginz.workers.dev`
+- Bindings: `ASSETS` (static), `IMAGES` (R2 bucket `finance-tracking-images`), `SHEET_ID` (var)
+- Secrets: `GOOGLE_SERVICE_ACCOUNT`, `APP_PASSWORD`
 
 ## Deployment Commands
 ```bash
-# Build for production
-npm run build
+# Build + deploy (Node 22)
+npm run deploy            # = vite build && wrangler deploy
 
-# Deploy to Cloudflare Pages
-npm run deploy
+# Set / rotate secrets
+npx wrangler secret put APP_PASSWORD
+npx wrangler secret put GOOGLE_SERVICE_ACCOUNT   # paste .secrets/sa-key.json
 
-# Manual deployment via wrangler
-npx wrangler pages deploy dist --project-name=finance-tracking
+# Service-account helpers (one-time / utility)
+node scripts/verify-access.mjs                    # confirm SA can read the sheet
+node scripts/add-image-column.mjs "Giao Dịch" "Ảnh"
 ```
 
 # Error Handling
@@ -230,7 +257,7 @@ npx wrangler pages deploy dist --project-name=finance-tracking
 # Data Storage
 - **IndexedDB**: Browser-native storage for:
   - Dynamic categories cache
-  - API token storage  
+  - Shared password storage  
   - Transaction queue for batch processing (auto-save)
   - Persistent across browser sessions and refreshes
 - **Offline-first**: App works without internet for cached categories
