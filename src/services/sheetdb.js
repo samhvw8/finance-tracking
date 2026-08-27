@@ -1,32 +1,78 @@
 import { indexedDBService } from './indexedDB'
 
-const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/otpxy27h47ofu'
+// Data layer. Talks to our own Cloudflare Worker (same origin, /api), which
+// holds the Google service-account key and forwards to the Google Sheets API.
+// SheetDB is no longer used. The Worker keeps SheetDB's contract:
+//   GET  /api/rows?sheet=<tab>&limit=<n>  -> array of row-objects (keyed by header)
+//   POST /api/rows  { data: [rowObjects], sheet: <tab> }  -> appends rows
+// Every call carries the shared password as `Authorization: Bearer <password>`.
+const API_BASE = '/api'
 const SHEET_NAME = 'Giao Dịch'
 const INVESTMENT_SHEET_NAME = 'Giao Dịch Investment'
 const SETUP_SHEET_NAME = 'Setup Finanace' // Note: typo in sheet name
 const INVESTMENT_ACCOUNT_SHEET_NAME = 'Investment Account'
 
+// The stored "apiToken" setting is repurposed as the shared app password.
 const getAuthToken = async () => {
   const savedToken = await indexedDBService.getSetting('apiToken')
-  return savedToken || import.meta.env.VITE_SHEETDB_TOKEN || 'token---'
+  return savedToken || import.meta.env.VITE_APP_PASSWORD || ''
+}
+
+const authHeaders = async (extra = {}) => ({
+  'Accept': 'application/json',
+  'Authorization': `Bearer ${await getAuthToken()}`,
+  ...extra,
+})
+
+// Read rows from a tab (array of objects keyed by header) — same shape SheetDB returned.
+const readSheet = async (sheet, limit) => {
+  const params = new URLSearchParams({ sheet })
+  if (limit) params.set('limit', String(limit))
+  const response = await fetch(`${API_BASE}/rows?${params.toString()}`, {
+    method: 'GET',
+    headers: await authHeaders(),
+  })
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+  return response.json()
+}
+
+// Append rows to a tab. `data` is an array of row-objects keyed by header name.
+const appendToSheet = async (data, sheet) => {
+  const response = await fetch(`${API_BASE}/rows`, {
+    method: 'POST',
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ data, sheet }),
+  })
+  if (!response.ok) {
+    const errorData = await response.text()
+    console.error('API Error Response:', errorData)
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+  return response.json()
+}
+
+// Upload a captured image (JPEG data URL) to the Worker -> returns a public URL
+// (served from R2 at /img/<key>) suitable for =IMAGE() in the sheet.
+export const uploadImage = async (dataUrl) => {
+  const response = await fetch(`${API_BASE}/upload-image`, {
+    method: 'POST',
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ dataUrl }),
+  })
+  if (!response.ok) {
+    const errorData = await response.text()
+    console.error('Image upload error:', errorData)
+    throw new Error('Không thể tải ảnh lên. Vui lòng thử lại.')
+  }
+  const result = await response.json()
+  return result.url
 }
 
 export const getSheetColumns = async () => {
   try {
-    const token = await getAuthToken()
-    const response = await fetch(`${SHEETDB_API_URL}?limit=1&sheet=${SHEET_NAME}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const data = await response.json()
+    const data = await readSheet(SHEET_NAME, 1)
     console.log('Sheet columns:', data[0] ? Object.keys(data[0]) : 'No data')
     return data[0] ? Object.keys(data[0]) : []
   } catch (error) {
@@ -37,32 +83,8 @@ export const getSheetColumns = async () => {
 
 export const createTransaction = async (transactionData) => {
   try {
-    const token = await getAuthToken()
-    const payload = {
-      data: [transactionData],
-      sheet: SHEET_NAME
-    }
-    
-    console.log('Sending to SheetDB:', JSON.stringify(payload, null, 2))
-    
-    const response = await fetch(SHEETDB_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('SheetDB Error Response:', errorData)
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    console.log('SheetDB Response:', result)
+    const result = await appendToSheet([transactionData], SHEET_NAME)
+    console.log('API Response:', result)
     return result
   } catch (error) {
     console.error('Error creating transaction:', error)
@@ -90,21 +112,8 @@ export const buildTransactionPayload = (formData) => {
 
 export const fetchCategories = async () => {
   try {
-    const token = await getAuthToken()
-    const response = await fetch(`${SHEETDB_API_URL}?sheet=${SETUP_SHEET_NAME}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    
+    const data = await readSheet(SETUP_SHEET_NAME)
+
     // Transform data into categories structure
     const categories = {
       'Thu Nhập': [],
@@ -112,7 +121,7 @@ export const fetchCategories = async () => {
       'Chuyển Tiền Vào Tài Khoản': [],
       'Rút Tiền Ra Tài Khoản': []
     }
-    
+
     data.forEach(row => {
       Object.keys(categories).forEach(type => {
         if (row[type] && row[type].trim()) {
@@ -120,12 +129,12 @@ export const fetchCategories = async () => {
         }
       })
     })
-    
+
     // Remove duplicates and sort
     Object.keys(categories).forEach(type => {
       categories[type] = [...new Set(categories[type])].sort()
     })
-    
+
     return categories
   } catch (error) {
     console.error('Error fetching categories:', error)
@@ -135,32 +144,8 @@ export const fetchCategories = async () => {
 
 export const createBatchTransactions = async (transactionsData) => {
   try {
-    const token = await getAuthToken()
-    const payload = {
-      data: transactionsData,
-      sheet: SHEET_NAME
-    }
-
-    console.log('Sending batch to SheetDB:', JSON.stringify(payload, null, 2))
-
-    const response = await fetch(SHEETDB_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('SheetDB Error Response:', errorData)
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    console.log('SheetDB Batch Response:', result)
+    const result = await appendToSheet(transactionsData, SHEET_NAME)
+    console.log('API Batch Response:', result)
     return result
   } catch (error) {
     console.error('Error creating batch transactions:', error)
@@ -186,32 +171,8 @@ export const buildInvestmentTransactionPayload = (formData) => {
 
 export const createInvestmentTransaction = async (transactionData) => {
   try {
-    const token = await getAuthToken()
-    const payload = {
-      data: [transactionData],
-      sheet: INVESTMENT_SHEET_NAME
-    }
-
-    console.log('Sending investment transaction to SheetDB:', JSON.stringify(payload, null, 2))
-
-    const response = await fetch(SHEETDB_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('SheetDB Error Response:', errorData)
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    console.log('SheetDB Investment Response:', result)
+    const result = await appendToSheet([transactionData], INVESTMENT_SHEET_NAME)
+    console.log('API Investment Response:', result)
     return result
   } catch (error) {
     console.error('Error creating investment transaction:', error)
@@ -221,32 +182,8 @@ export const createInvestmentTransaction = async (transactionData) => {
 
 export const createBatchInvestmentTransactions = async (transactionsData) => {
   try {
-    const token = await getAuthToken()
-    const payload = {
-      data: transactionsData,
-      sheet: INVESTMENT_SHEET_NAME
-    }
-
-    console.log('Sending batch investment transactions to SheetDB:', JSON.stringify(payload, null, 2))
-
-    const response = await fetch(SHEETDB_API_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('SheetDB Error Response:', errorData)
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    console.log('SheetDB Batch Investment Response:', result)
+    const result = await appendToSheet(transactionsData, INVESTMENT_SHEET_NAME)
+    console.log('API Batch Investment Response:', result)
     return result
   } catch (error) {
     console.error('Error creating batch investment transactions:', error)
@@ -291,20 +228,7 @@ export const createBatchInvestmentWithLinkedTransactions = async (investmentTran
 // Investment Accounts Functions
 export const fetchInvestmentAccounts = async () => {
   try {
-    const token = await getAuthToken()
-    const response = await fetch(`${SHEETDB_API_URL}?sheet=${INVESTMENT_ACCOUNT_SHEET_NAME}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await readSheet(INVESTMENT_ACCOUNT_SHEET_NAME)
 
     // Extract account IDs from the data
     // Assuming the sheet has columns like: Account ID, Account Name, Type, etc.
