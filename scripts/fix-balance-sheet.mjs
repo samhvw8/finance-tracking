@@ -28,8 +28,10 @@ const base = (r) => `(${income(r)})+(${withdraw(r)})`;
 const grp = (r, g) => `SUMIFS(${D}!$E:$E,${D}!$B:$B,"Chi Tiêu",${D}!$H:$H,"${g}",${D}!$G:$G,$L${r},${NN})`;
 const S = `'Setup Finanace'`;
 
+// 60 month slots (~5 years of headroom). Unused rows stay visually blank via the
+// IF($L=""), and Sheets short-circuits the branch, so empty slots cost nothing.
 const rows = [];
-for (let r = 2; r <= 20; r++) {
+for (let r = 2; r <= 61; r++) {
   const g = (x) => `IF($L${r}="","",${x})`; // blank when the month row is empty
   rows.push([
     g(`$B${r}+$D${r}+$F${r}+$H${r}+$J${r}`),            // A Surplus
@@ -47,11 +49,11 @@ for (let r = 2; r <= 20; r++) {
 }
 
 const res = await fetch(
-  `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent("'Balance Sheet'!A2:K20")}?valueInputOption=USER_ENTERED`,
+  `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent("'Balance Sheet'!A2:K61")}?valueInputOption=USER_ENTERED`,
   {
     method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ values: rows }),
   }
 );
-console.log(res.ok ? `✅ rewrote A2:K20 (${rows.length} month rows) — pivot-independent` : `❌ ${res.status} ${await res.text()}`);
+console.log(res.ok ? `✅ rewrote A2:K61 (${rows.length} month slots) — pivot-independent` : `❌ ${res.status} ${await res.text()}`);
