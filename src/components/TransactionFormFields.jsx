@@ -1,6 +1,7 @@
 import { TRANSACTION_TYPES } from '../constants/categories'
 import DatePicker from './DatePicker'
 import AmountInput from './AmountInput'
+import ImageCapture from './ImageCapture'
 
 const TransactionFormFields = ({ 
   formData, 
@@ -119,6 +120,11 @@ const TransactionFormFields = ({
           Thêm ghi chú bổ sung cho giao dịch nếu cần. Trường này không bắt buộc.
         </div>
       </div>
+
+      <ImageCapture
+        value={formData.photoData}
+        onChange={(dataUrl) => handleInputChange('photoData', dataUrl)}
+      />
     </fieldset>
   )
 }

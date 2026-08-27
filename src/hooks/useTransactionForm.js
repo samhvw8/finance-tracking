@@ -8,7 +8,8 @@ const initialFormData = {
   category: '',
   name: '',
   amount: 0,
-  note: ''
+  note: '',
+  photoData: ''
 }
 
 export const useTransactionForm = (initialData = null, onFormDataChange = null) => {
@@ -61,7 +62,8 @@ export const useTransactionForm = (initialData = null, onFormDataChange = null) 
         category: '',
         name: '',
         amount: 0,
-        note: ''
+        note: '',
+        photoData: ''
       })
     } else {
       setFormData(initialFormData)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { formatDateForSheet, formatCurrencyForPayload, formatCurrency, formatMonthSheet } from '../utils/formatters'
-import { createTransaction, createBatchTransactions, buildTransactionPayload } from '../services/sheetdb'
+import { createTransaction, createBatchTransactions, buildTransactionPayload, uploadImage } from '../services/sheetdb'
 import { indexedDBService } from '../services/indexedDB'
 import { useTransactionForm } from '../hooks/useTransactionForm'
 import TransactionFormFields from './TransactionFormFields'
@@ -104,6 +104,18 @@ const UnifiedTransactionForm = ({
       month: formatMonthSheet(data.date)
     })
   }
+
+  // Build the payload and, if a photo was attached, upload it and embed
+  // =IMAGE(url) in the "Ảnh" column.
+  const buildPayloadWithImage = async (data) => {
+    const payload = buildPayload(data)
+    if (data.photoData) {
+      const imageUrl = await uploadImage(data.photoData)
+      // Clickable thumbnail: shows the image AND opens the full image in a new tab.
+      payload['Ảnh'] = `=HYPERLINK("${imageUrl}", IMAGE("${imageUrl}"))`
+    }
+    return payload
+  }
   
   // Single mode submit
   const handleSingleSubmit = async (e) => {
@@ -119,9 +131,9 @@ const UnifiedTransactionForm = ({
     showMessage('')
     
     try {
-      const payload = buildPayload(formData)
+      const payload = await buildPayloadWithImage(formData)
       await createTransaction(payload)
-      
+
       showMessage('Giao dịch đã được lưu thành công!')
       resetForm(mode === 'batch') // Keep date/type in batch mode
     } catch (error) {
@@ -165,7 +177,7 @@ const UnifiedTransactionForm = ({
     showMessage('')
     
     try {
-      const payload = transactions.map(t => buildPayload(t))
+      const payload = await Promise.all(transactions.map(buildPayloadWithImage))
       await createBatchTransactions(payload)
       
       showMessage(`${transactions.length} giao dịch đã được lưu thành công!`)
