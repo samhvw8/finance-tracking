@@ -109,12 +109,12 @@ const Sidebar = () => {
           <div className="mt-4 pt-4 border-t border-gray-200 text-center space-y-1">
             <p className="text-xs text-gray-500">Finance Tracking v1.0</p>
             <a
-              href="https://sheetdb.io"
+              href="https://www.google.com/sheets/about/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-500 hover:text-blue-600 transition-colors inline-block"
             >
-              Powered by SheetDB
+              Powered by Google Sheets
             </a>
           </div>
         </div>

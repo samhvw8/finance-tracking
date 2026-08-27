@@ -24,17 +24,17 @@ const TokenSettings = () => {
   
   const handleSaveToken = async () => {
     if (!token.trim()) {
-      showMessage('Vui lòng nhập token!', 'error')
+      showMessage('Vui lòng nhập mật khẩu!', 'error')
       return
     }
-    
+
     try {
       await indexedDBService.saveSetting('apiToken', token.trim())
       setIsEditingToken(false)
-      showMessage('Token đã được lưu!', 'success')
+      showMessage('Mật khẩu đã được lưu!', 'success')
     } catch (error) {
-      console.error('Error saving token:', error)
-      showMessage('Lỗi khi lưu token!', 'error')
+      console.error('Error saving password:', error)
+      showMessage('Lỗi khi lưu mật khẩu!', 'error')
     }
   }
   
@@ -47,7 +47,7 @@ const TokenSettings = () => {
     } catch (error) {
       console.error('Error reloading categories:', error)
       if (error.message.includes('401') || error.message.includes('Authentication')) {
-        showMessage('Token không hợp lệ. Vui lòng kiểm tra lại!', 'error')
+        showMessage('Mật khẩu không hợp lệ. Vui lòng kiểm tra lại!', 'error')
       } else {
         showMessage('Lỗi khi tải danh mục. Vui lòng thử lại!', 'error')
       }
@@ -65,7 +65,7 @@ const TokenSettings = () => {
     } catch (error) {
       console.error('Error reloading accounts:', error)
       if (error.message.includes('401') || error.message.includes('Authentication')) {
-        showMessage('Token không hợp lệ. Vui lòng kiểm tra lại!', 'error')
+        showMessage('Mật khẩu không hợp lệ. Vui lòng kiểm tra lại!', 'error')
       } else {
         showMessage('Lỗi khi tải danh sách tài khoản. Vui lòng thử lại!', 'error')
       }
@@ -84,7 +84,7 @@ const TokenSettings = () => {
       {/* Token Section */}
       <div className="bg-white rounded-lg p-3 shadow-sm">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">API Token</h3>
+          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Mật Khẩu</h3>
             {!isEditingToken && (
               <button
                 onClick={() => setIsEditingToken(true)}
@@ -102,7 +102,7 @@ const TokenSettings = () => {
                   type={showToken ? 'text' : 'password'}
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
-                  placeholder="Nhập SheetDB Bearer Token"
+                  placeholder="Nhập mật khẩu truy cập"
                   className="w-full px-4 py-2.5 pr-20 text-sm border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300"
                 />
                 <button
