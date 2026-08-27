@@ -1,5 +1,5 @@
 [tools]
-node = "20.18.1"
+node = "22.16.0"
 npm = "latest"
 pnpm = "latest"
 
@@ -23,5 +23,5 @@ description = "Install dependencies"
 run = "npm install"
 
 [tasks.deploy]
-description = "Deploy to Cloudflare Pages"
+description = "Deploy to Cloudflare Workers"
 run = "npm run deploy"
